@@ -4,6 +4,9 @@ import pandas as pd
 import random
 import numpy as np
 import math
+import io
+import scipy.io.wavfile as wavfile
+import base64
 import gspread
 
 # 페이지 설정
@@ -66,7 +69,7 @@ if st.session_state.page == "survey_pre":
             st.error("이름 또는 ID를 입력해주세요.")
 
 # -------------------------------------------------------------------------
-# 2. RST 안내 및 테스트 페이지 (메트로놈 내장)
+# 2. RST 안내 및 테스트 페이지 (메트로놈 무한 루프 적용)
 # -------------------------------------------------------------------------
 elif st.session_state.page == "rst_instr":
     st.title("🎵 RST (반응 시간 테스트) 안내")
@@ -89,15 +92,28 @@ elif st.session_state.page == "rst_test":
             st.write("아무런 소리가 나지 않는 상태입니다. 준비가 되면 아래 '지금 클릭!' 버튼을 누르세요.")
     else:
         with st.container(key="music_container"):
-            st.subheader(f"⏱️ 현재 처치: {treatment} 메트로놈 재생")
-            st.write("아래 오디오 플레이어의 재생(▶️) 버튼을 누르고 메트로놈 소리에 맞춰 '지금 클릭!' 버튼을 누르세요.")
+            st.subheader(f"⏱️ 현재 처치: {treatment} 메트로놈 무한 재생 중")
+            st.write("메트로놈 소리가 무한 반복됩니다. 박자를 들으면서 준비가 되면 '지금 클릭!' 버튼을 누르세요.")
             
-            # 파이썬 코드로 지정된 BPM 메트로놈 생성 (10초 분량)
+            # 1. 파이썬 코드로 10초 분량의 기본 메트로놈 음원 생성
             bpm_value = 60 if treatment == "60bpm" else 130
             audio_data, sample_rate = generate_metronome_sound(bpm_value, duration_seconds=10)
             
-            # 🌟 외부 주소 없이 파이썬 내부 배열을 오디오로 즉시 재생! 에러 가능성 0%
-            st.audio(audio_data, sample_rate=sample_rate, format="audio/wav")
+            # 2. 오디오 데이터를 바이너리로 변환 (브라우저 호환성을 위해 int16 변환)
+            virtual_file = io.BytesIO()
+            audio_int16 = (audio_data * 32767).astype(np.int16)
+            wavfile.write(virtual_file, sample_rate, audio_int16)
+            audio_bytes = virtual_file.getvalue()
+            
+            # 3. HTML5 audio 태그에 'loop'와 'autoplay' 속성을 넣어 무한 반복 플레이어 심기
+            audio_base64 = base64.b64encode(audio_bytes).decode()
+            audio_html = f"""
+                <audio autoplay loop style="width: 100%;">
+                    <source src="data:audio/wav;base64,{audio_base64}" type="audio/wav">
+                    Your browser does not support the audio element.
+                </audio>
+            """
+            st.markdown(audio_html, unsafe_allow_html=True)
     
     st.write("---")
     
