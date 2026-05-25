@@ -7,10 +7,10 @@ import gspread
 import hashlib
 
 # 페이지 설정
-st.set_page_config(page_title="RSPAN 정밀 인지심리 테스트", layout="centered")
+st.set_page_config(page_title="RSPAN 작업기억 테스트", layout="centered")
 
 # -------------------------------------------------------------------------
-# [요구사항 2] RSPAN 표준 문장 풀 (총 10개 문장 고정 제공)
+# [요구사항 2] RSPAN 표준 문장 데이터 풀 (총 10개 문장 고정 제공)
 # -------------------------------------------------------------------------
 RSPAN_RAW_SENTENCES = [
     {"template": "그 작가는 글을 다 쓸 때까지 짧고 빠른 스퍼트로 자신의 {책|악어}을 집필했다."},
@@ -33,7 +33,7 @@ if "page" not in st.session_state:
 if "survey_data" not in st.session_state:
     st.session_state.survey_data = {}
 
-# 📢 외부 라이브러리 없이 메트로놈 원음을 생성하는 함수
+# 📢 [순수 파이썬 오디오] 외부 패키지(scipy 등) 없이 메트로놈 원음을 만드는 함수
 def generate_pure_metronome(bpm, duration_seconds=20):
     sample_rate = 22050
     num_channels = 1
@@ -80,34 +80,34 @@ def generate_pure_metronome(bpm, duration_seconds=20):
 # -------------------------------------------------------------------------
 if st.session_state.page == "survey_pre":
     st.title("📋 실험 전 사전 설문조사")
-    st.write("본 연구 데이터 수집을 위해 솔직하게 답변해 주시기 바랍니다.")
+    st.write("본 연구 데이터 수집을 위해 아래 문항에 응답해 주세요.")
     
-    name = st.text_input("참여자 이름 또는 고유 고식별 ID")
+    name = st.text_input("참여자 이름 / ID")
     
     # 1. 나이 입력 제한 (만 19세 ~ 29세만 가능하도록 딱 제약)
     age = st.number_input("나이 (만 나이 입력)", min_value=19, max_value=29, value=22, 
                           help="본 실험은 만 19세부터 29세까지만 참여가 가능합니다.")
     
-    # 2. 성별 (선택안함 삭제, 남성/여성만 제공)
+    # 2. 성별 (선택안함 없이 남성/여성만 제공)
     gender = st.selectbox("성별", ["남성", "여성"])
     
     # 3. 수면 시간 입력 (00시 00분 타임 셀렉터 포맷)
     sleep_time = st.time_input("어제 수면 시간 (취침 시각)", value=time.fromisoformat("23:00:00"))
     
     # 4. 현재 피로도 척도 (1~5)
-    fatigue = st.slider("현재 본인이 느끼는 피로도 척도는 어느 정도입니까? (1: 전혀 안 피곤함 ~ 5: 매우 피로함)", 1, 5, 3)
+    fatigue = st.slider("현재 본인이 느끼는 피로도는 어느 정도입니까? (1: 전혀 안 피곤함 ~ 5: 매우 피로함)", 1, 5, 3)
     
     # 5. 평소 소음 민감도 (1~5)
-    noise_sensitivity = st.slider("평소 일상생활 소음에 얼마나 민감하십니까? (1: 둔감함 ~ 5: 매우 예민함)", 1, 5, 3)
+    noise_sensitivity = st.slider("평소 일상생활 소음에 얼마나 민감하십니까? (1: 전혀 민감하지 않음 ~ 5: 매우 민감함)", 1, 5, 3)
     
-    # 6. 평소 선호하는 음향 환경 선호도 리스트
+    # 6. 평소 선호하는 음향 환경 선호도
     sound_preference = st.radio("평소 공부나 작업 시 어떤 음향 환경을 선호하십니까?", 
                                 ["완전한 무음 상태", "적당한 백색소음(카페, 자연음)", "잔잔한 음악이나 가요", "일정한 박자의 비트나 메트로놈"])
     
-    if st.button("실험 환경 확인 및 입장"):
+    if st.button("실험 환경 확인 및 테스트 시작", use_container_width=True):
         if name:
             # -------------------------------------------------------------------------
-            # [요구사항 2] 처치 조건 사정 배정 알고리즘
+            # [요구사항 2] 처치 조건 사전 배정 알고리즘
             # -------------------------------------------------------------------------
             # ID 문자열을 해싱하여 무음, 60bpm, 130bpm 중 하나로 고정 고유 매칭 (엑셀 선입력 불필요)
             hash_val = int(hashlib.md5(name.encode('utf-8')).hexdigest(), 16)
@@ -126,7 +126,6 @@ if st.session_state.page == "survey_pre":
             processed_sentences = []
             
             for item in shuffled_pool:
-                # {책|악어} 문자열 파싱 구문 해석
                 template = item["template"]
                 p1 = template.find("{")
                 p2 = template.find("|")
@@ -135,14 +134,14 @@ if st.session_state.page == "survey_pre":
                 word_true = template[p1+1:p2]
                 word_false = template[p2+1:p3]
                 
-                # 50% 확률로 맞는 단어를 치환하여 배치, 50% 확률로 틀린 단어를 배치하여 문제 동적 조립
+                # 50% 확률로 맞는 문장 또는 틀린 문장을 동적으로 조립하여 노출
                 is_correct_type = random.choice([True, False])
                 chosen_word = word_true if is_correct_type else word_false
                 final_text = template[:p1] + chosen_word + template[p3+1:]
                 
                 processed_sentences.append({"text": final_text, "correct": is_correct_type})
                 
-            st.session_state.set_size = 10  # 총 10문장 제공
+            st.session_state.set_size = 10  # 총 10문장 고정
             st.session_state.current_step = 0
             st.session_state.sub_stage = "sentence"
             st.session_state.selected_sentences = processed_sentences
@@ -156,7 +155,7 @@ if st.session_state.page == "survey_pre":
             st.session_state.page = "rspan_test"
             st.rerun()
         else:
-            st.error("참여자 식별 고유 ID를 기입해주셔야 실험 배정이 시작됩니다.")
+            st.error("참여자 이름 또는 ID를 기입해주셔야 실험 배정이 시작됩니다.")
 
 # -------------------------------------------------------------------------
 # [요구사항 2] RSPAN 테스트 본 무대 루프
@@ -200,13 +199,13 @@ elif st.session_state.page == "rspan_test":
                 st.session_state.sub_stage = "letter"
                 st.rerun()
 
-    # [요구사항 2] 글자는 정확히 0.5초 동안만 화면에 번쩍 노출 후 다음으로 전환
+    # [요구사항 2] 글자는 정확히 0.5초 동안만 화면에 노출 후 자동 리런
     elif st.session_state.sub_stage == "letter":
         st.subheader("💡 나타난 글자의 알파벳 자음을 암기하세요")
         tgt = st.session_state.selected_letters[idx]
         
         st.markdown(f"<h1 style='text-align: center; font-size: 120px; color: #FF4B4B; font-weight: bold;'>{tgt}</h1>", unsafe_allow_html=True)
-        time.sleep(0.5)  # 요구사항 명세: 단어 노출 타임아웃 0.5초 
+        time.sleep(0.5)  # 단어 노출 정확히 0.5초 유지
         
         if idx + 1 < st.session_state.set_size:
             st.session_state.current_step += 1
@@ -254,16 +253,15 @@ elif st.session_state.page == "rspan_recall":
             st.rerun()
 
 # -------------------------------------------------------------------------
-# [요구사항 3] 사후 설문 조사 및 데이터 업로드 구문
+# [요구사항 3] 사후 설문 조사 (집중도 자가평가 1~5 고정)
 # -------------------------------------------------------------------------
 elif st.session_state.page == "survey_post":
     st.title("📝 사후 평가 문항")
     
-    # 1. 집중도 자가평가 (1~5)
     satisfaction = st.slider("방금 진행한 인지 과제 중 자신의 집중도 자가평가 수치를 선택해 주세요. (1: 매우 산만함 ~ 5: 완벽히 집중함)", 1, 5, 3)
     feedback = st.text_area("그 외 환경 자극 조건(메트로놈 속도 등)에 대해 느껴진 주관적 반응 기술")
     
-    if st.button("실험 최종 보고서 데이터 서버 전송"):
+    if st.button("실험 최종 보고서 데이터 서버 전송", use_container_width=True, type="primary"):
         st.session_state.survey_data.update({"satisfaction": satisfaction, "feedback": feedback})
         
         with st.spinner("구글 스프레드시트 API 엔진에 연산 데이터를 백업 중입니다..."):
