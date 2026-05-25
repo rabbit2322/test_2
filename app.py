@@ -7,9 +7,6 @@ import gspread
 # 페이지 설정
 st.set_page_config(page_title="RST 테스트", layout="centered")
 
-# 구글 시트 연결 초기화 (내부적으로 무료 API 사용)
-conn = st.connection("gsheets", type=GSheetsConnection)
-
 # 세션 상태(State) 초기화 - 페이지 이동 및 데이터 임시 저장용
 if "page" not in st.session_state:
     st.session_state.page = "survey_pre"
