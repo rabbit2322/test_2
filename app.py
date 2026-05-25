@@ -13,9 +13,9 @@ st.set_page_config(page_title="RSPAN 작업기억 테스트", layout="centered")
 # 전역 알파벳 자음 풀
 LETTERS_POOL = ["F", "H", "J", "K", "L", "N", "P", "Q", "R", "S", "T", "Y"]
 
-# 외부 텍스트 파일(sentences.txt)에서 문장 로드하는 함수
+# 외부 텍스트 파일(span.txt)에서 문장 로드하는 함수
 @st.cache_data
-def load_sentences(file_path="sentences.txt"):
+def load_sentences(file_path="span.txt"):
     sentences = []
     if os.path.exists(file_path):
         with open(file_path, "r", encoding="utf-8") as f:
@@ -26,7 +26,7 @@ def load_sentences(file_path="sentences.txt"):
     return sentences
 
 # 문장 데이터셋 불러오기
-RSPAN_RAW_SENTENCES = load_sentences("sentences.txt")
+RSPAN_RAW_SENTENCES = load_sentences("span.txt")
 
 # 세션 상태(State) 초기화
 if "page" not in st.session_state:
@@ -91,7 +91,7 @@ def init_block_task():
     
     # 문장 파일 로드 예외 처리
     if not RSPAN_RAW_SENTENCES:
-        st.error("🚨 'sentences.txt' 파일이 없거나 비어 있어 실험을 진행할 수 없습니다.")
+        st.error("🚨 'span.txt' 파일이 없거나 비어 있어 실험을 진행할 수 없습니다.")
         st.stop()
         
     shuffled_pool = random.sample(RSPAN_RAW_SENTENCES, min(set_size, len(RSPAN_RAW_SENTENCES)))
@@ -156,7 +156,7 @@ elif st.session_state.page == "survey_pre":
     
     # 파일 부재 시 설문 진입 단계에서 사전 경고 처리
     if not RSPAN_RAW_SENTENCES:
-        st.error("⚠️ 경고: 폴더 내 'sentences.txt' 파일이 누락되었거나 비어 있습니다. 파일 배치를 확인해 주세요.")
+        st.error("⚠️ 경고: 폴더 내 'span.txt' 파일이 누락되었거나 비어 있습니다. 파일 배치를 확인해 주세요.")
     
     # 피험자 연령: 만 ( )세 (만 19세~29세)
     age = st.number_input("피험자 연령: 만 ( )세 (만 19세~29세)", min_value=19, max_value=29, value=23)
