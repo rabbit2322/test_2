@@ -7,7 +7,7 @@ import gspread
 # 페이지 설정
 st.set_page_config(page_title="RST 테스트", layout="centered")
 
-# 세션 상태(State) 초기화 - 페이지 이동 및 데이터 임시 저장용
+# 세션 상태(State) 초기화
 if "page" not in st.session_state:
     st.session_state.page = "survey_pre"
 if "survey_data" not in st.session_state:
@@ -35,35 +35,46 @@ if st.session_state.page == "survey_pre":
             st.error("이름 또는 ID를 입력해주세요.")
 
 # -------------------------------------------------------------------------
-# 2. RST 안내 및 테스트 페이지 (60BPM, 130BPM, 무음 랜덤 버전)
+# 2. RST 안내 및 테스트 페이지
 # -------------------------------------------------------------------------
+elif st.session_state.page == "rst_instr":
+    st.title("🎵 RST (반응 시간 테스트) 안내")
+    st.write("이제 테스트가 시작됩니다. 화면에 지시사항이 나오면 확인 후 아래 버튼을 최대한 빠르게 눌러주세요.")
+    
+    if st.button("테스트 시작"):
+        treatments = ["60bpm", "130bpm", "silent"]
+        st.session_state.current_treatment = random.choice(treatments)
+        st.session_state.survey_data["treatment"] = st.session_state.current_treatment
+        st.session_state.page = "rst_test"
+        st.rerun()
+
 elif st.session_state.page == "rst_test":
     st.title("🕹️ RST 진행 중")
-    
     treatment = st.session_state.current_treatment
     
-    # 🌟 모든 조건에서 제목과 안내를 통일하여 화면 구조를 유지합니다.
-    st.subheader(f"🎵 현재 테스트 환경에 진입했습니다.")
-    st.write("아래 유튜브 비디오의 재생 버튼을 누르고, 준비가 되면 '지금 클릭!' 버튼을 누르세요.")
-    
-    # 무음 처치일 때도 '소리가 없는 유튜브 영상 링크'를 제공합니다.
     if treatment == "silent":
-        # 예시: 10시간짜리 무음 영상 링크 (실제 존재하는 아무 무음 영상이나 넣으시면 됩니다)
-        youtube_url = "https://youtu.be/T8BEuSlWXLs?si=YZ7JIy9GyR5ScR5S" 
-    elif treatment == "60bpm":
-        youtube_url = "https://youtu.be/ymJIXzvDvj4?si=54aZDLmc69OhedxV"
-    elif treatment == "130bpm":
-        youtube_url = "https://youtu.be/koTb8E5PpKM?si=Or_leA5j7EMgLeXP"
-        
-    # 🌟 무음이든 음성이든 무조건 st.video를 실행하므로 브라우저가 꼬이지 않습니다.
-    st.video(youtube_url)
+        with st.container(key="silent_container"):
+            st.subheader("🤫 현재 처치: 무음 환경")
+            st.write("아무런 소리가 나지 않는 상태입니다. 준비가 되면 아래 '지금 클릭!' 버튼을 누르세요.")
+    else:
+        with st.container(key="music_container"):
+            st.subheader(f"🎵 현재 처치: {treatment} 음악 재생")
+            st.write("아래 유튜브 비디오의 재생 버튼을 누르고 음악을 들으면서 '지금 클릭!' 버튼을 누르세요.")
+            
+            # 본인의 유튜브 영상 링크 ID가 있다면 뒤에 넣어주세요. (예: dQw4w9WgXcQ)
+            if treatment == "60bpm":
+                youtube_url = "https://youtu.be/ymJIXzvDvj4?si=54aZDLmc69OhedxV"
+            elif treatment == "130bpm":
+                youtube_url = "https://youtu.be/koTb8E5PpKM?si=Or_leA5j7EMgLeXP"
+                
+            st.video(youtube_url, key=f"video_{treatment}")
     
     st.write("---")
     
     if "start_time" not in st.session_state:
         st.session_state.start_time = time.time()
         
-    if st.button("🎯 지금 클릭!", use_container_width=True):
+    if st.button("🎯 지금 클릭!", use_container_width=True, key="click_btn"):
         end_time = time.time()
         reaction_time = round(end_time - st.session_state.start_time, 3)
         st.session_state.survey_data["reaction_time"] = reaction_time
@@ -73,7 +84,7 @@ elif st.session_state.page == "rst_test":
         st.rerun()
 
 # -------------------------------------------------------------------------
-# 3. 사후 설문조사 및 데이터 저장 (gspread 무료 우회 버전)
+# 3. 사후 설문조사 및 데이터 저장
 # -------------------------------------------------------------------------
 elif st.session_state.page == "survey_post":
     st.title("📝 사후 설문조사")
@@ -86,36 +97,34 @@ elif st.session_state.page == "survey_post":
         st.session_state.survey_data["satisfaction"] = satisfaction
         st.session_state.survey_data["feedback"] = feedback
         
-        try:
-            # 🌟 Streamlit Secrets에 저장된 주소로 구글 시트 연결
-            sheet_url = st.secrets["connections"]["gsheets"]["spreadsheet"]
-            
-            # 링크 공유가 '편집자'로 되어 있다면 이 방식으로 바로 접근 가능합니다.
-            gc = gspread.public_api()
-            sh = gc.open_by_url(sheet_url)
-            worksheet = sh.get_worksheet(0) # 첫 번째 시트 선택
-            
-            # 저장할 데이터를 순서대로 리스트로 변환
-            # (구글 시트 첫 행에 적어둔 순서와 일치해야 합니다)
-            row_data = [
-                st.session_state.survey_data.get("name", ""),
-                st.session_state.survey_data.get("age", ""),
-                st.session_state.survey_data.get("gender", ""),
-                st.session_state.survey_data.get("treatment", ""),
-                st.session_state.survey_data.get("reaction_time", ""),
-                st.session_state.survey_data.get("satisfaction", ""),
-                st.session_state.survey_data.get("feedback", "")
-            ]
-            
-            # 구글 시트 맨 아래에 데이터 추가
-            worksheet.append_row(row_data)
-            
-            st.session_state.page = "complete"
-            st.rerun()
-            
-        except Exception as e:
-            st.error(f"데이터 저장 중 오류가 발생했습니다: {e}")
-            st.info("구글 시트가 '링크가 있는 모든 사용자에게 편집자 권한 부여'로 공유되어 있는지 다시 확인해 주세요.")
+        with st.spinner("구글 시트에 데이터를 안전하게 저장 중입니다..."):
+            try:
+                sheet_url = st.secrets["connections"]["gsheets"]["spreadsheet"]
+                
+                gc = gspread.public_api()
+                sh = gc.open_by_url(sheet_url)
+                worksheet = sh.get_worksheet(0)
+                
+                # 🌟 st.session_data -> st.session_state 로 올바르게 수정 완료!
+                row_data = [
+                    st.session_state.survey_data.get("name", ""),
+                    st.session_state.survey_data.get("age", ""),
+                    st.session_state.survey_data.get("gender", ""),
+                    st.session_state.survey_data.get("treatment", ""),
+                    st.session_state.survey_data.get("reaction_time", ""),
+                    st.session_state.survey_data.get("satisfaction", ""),
+                    st.session_state.survey_data.get("feedback", "")
+                ]
+                
+                worksheet.append_row(row_data)
+                st.session_state.page = "complete"
+                st.rerun()
+                
+            except Exception as e:
+                st.error(f"구글 시트 저장 실패: {e}")
+                st.info("실험 데이터 백업:")
+                st.code(str(st.session_state.survey_data))
+
 # -------------------------------------------------------------------------
 # 4. 완료 페이지
 # -------------------------------------------------------------------------
