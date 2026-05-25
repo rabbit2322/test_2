@@ -3,6 +3,7 @@ from streamlit_gsheets import GSheetsConnection
 import time
 import pandas as pd
 import random  # 코드 최상단에 이 줄이 없다면 추가해주세요!
+import gspread
 
 # 페이지 설정
 st.set_page_config(page_title="RST 테스트", layout="centered")
@@ -76,7 +77,7 @@ elif st.session_state.page == "rst_test":
         st.rerun()
 
 # -------------------------------------------------------------------------
-# 3. 사후 설문조사 및 데이터 저장
+# 3. 사후 설문조사 및 데이터 저장 (gspread 무료 우회 버전)
 # -------------------------------------------------------------------------
 elif st.session_state.page == "survey_post":
     st.title("📝 사후 설문조사")
@@ -89,20 +90,36 @@ elif st.session_state.page == "survey_post":
         st.session_state.survey_data["satisfaction"] = satisfaction
         st.session_state.survey_data["feedback"] = feedback
         
-        # 구글 시트에 데이터 누적 저장 프로세스
         try:
-            # 기존 데이터 읽기
-            existing_data = conn.read(worksheet="Sheet1", ttl=0)
-            new_row = pd.DataFrame([st.session_state.survey_data])
-            updated_df = pd.concat([existing_data, new_row], ignore_index=True)
+            # 🌟 Streamlit Secrets에 저장된 주소로 구글 시트 연결
+            sheet_url = st.secrets["connections"]["gsheets"]["spreadsheet"]
             
-            # 구글 시트에 업데이트
-            conn.update(worksheet="Sheet1", data=updated_df)
+            # 링크 공유가 '편집자'로 되어 있다면 이 방식으로 바로 접근 가능합니다.
+            gc = gspread.public_api()
+            sh = gc.open_by_url(sheet_url)
+            worksheet = sh.get_worksheet(0) # 첫 번째 시트 선택
+            
+            # 저장할 데이터를 순서대로 리스트로 변환
+            # (구글 시트 첫 행에 적어둔 순서와 일치해야 합니다)
+            row_data = [
+                st.session_state.survey_data.get("name", ""),
+                st.session_state.survey_data.get("age", ""),
+                st.session_state.survey_data.get("gender", ""),
+                st.session_state.survey_data.get("treatment", ""),
+                st.session_state.survey_data.get("reaction_time", ""),
+                st.session_state.survey_data.get("satisfaction", ""),
+                st.session_state.survey_data.get("feedback", "")
+            ]
+            
+            # 구글 시트 맨 아래에 데이터 추가
+            worksheet.append_row(row_data)
+            
             st.session_state.page = "complete"
             st.rerun()
+            
         except Exception as e:
-            st.error("데이터 저장 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
-
+            st.error(f"데이터 저장 중 오류가 발생했습니다: {e}")
+            st.info("구글 시트가 '링크가 있는 모든 사용자에게 편집자 권한 부여'로 공유되어 있는지 다시 확인해 주세요.")
 # -------------------------------------------------------------------------
 # 4. 완료 페이지
 # -------------------------------------------------------------------------
