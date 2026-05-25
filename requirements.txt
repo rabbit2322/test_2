@@ -1,3 +1,2 @@
-streamlit
+streamlit==1.57.0
 gspread
-pandas
