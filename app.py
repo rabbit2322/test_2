@@ -146,30 +146,45 @@ if st.session_state.page == "instruction":
         st.rerun()
 
 # -------------------------------------------------------------------------
-# [1] 사전 설문조사 페이지
+# [1] 수정 완료: 사전 설문조사 페이지
 # -------------------------------------------------------------------------
 elif st.session_state.page == "survey_pre":
     st.title("📋 실험 전 사전 설문조사")
-    st.write("연구 분석을 위해 솔직하게 응답해 주시기 바랍니다. (참여자 이름은 수집하지 않습니다)")
+    st.write("연구 분석을 위해 아래 문항에 응답해 주시기 바랍니다. (개인 식별 이름은 수집하지 않습니다)")
     
-    age = st.number_input("나이 (만 나이 기준)", min_value=15, max_value=50, value=23)
+    # 1. 참가자의 나이
+    age = st.number_input("참가자의 나이 (만 나이 기준)", min_value=10, max_value=60, value=23)
     
-    st.write("**어제 수면 시각을 선택해 주세요.**")
+    # 2. 잠든 시각 (시, 분)
+    st.write("**잠든 시각 (취침 시각)**")
     c_hour, c_min = st.columns(2)
     with c_hour:
         sleep_hour = st.selectbox("시 (Hour)", options=[f"{i:02d}" for i in range(24)], index=23)
     with c_min:
         sleep_min = st.selectbox("분 (Minute)", options=[f"{i:02d}" for i in range(0, 60, 10)], index=0)
     
-    time_of_day = st.radio("현재 참여하고 계신 시간대는 언제입니까?", ["오전 (00:00 ~ 12:00)", "오후 (12:00 ~ 24:00)"])
+    # 3. 주관적인 현재 피로도
+    fatigue = st.slider("주관적인 현재 피로도 (1: 매우 개운함 ~ 5: 매우 피로함)", 1, 5, 3)
     
-    fatigue = st.slider("현재 본인이 느끼는 피로도는 어느 정도입니까? (1: 매우 개운함 ~ 5: 매우 피로함)", 1, 5, 3)
-    noise_sensitivity = st.slider("평소 일상생활 소음에 얼마나 민감하십니까? (1: 매우 둔감함 ~ 5: 매우 민감함)", 1, 5, 3)
+    # 4. 주관적인 소음 민감도
+    noise_sensitivity = st.slider("주관적인 소음 민감도 (1: 매우 둔감함 ~ 5: 매우 민감함)", 1, 5, 3)
     
-    sound_preference = st.text_input("평소 어떤 음향 환경을 선호하십니까? (예: 완전한 무음, 카페 소음, 잔잔한 음악 등 옆에 한줄로 적어달라고 적기)")
+    # 5. 평소 선호하는 음향환경 선택지 및 기타 분기 구조 처리
+    sound_pref_type = st.radio(
+        "평소 선호하는 음향환경을 선택해 주세요.",
+        ["정적(무음)", "백색소음", "적당한 소음이 있는 환경(ex: 카페)", "기타(자유 기술)"]
+    )
+    
+    # '기타(자유 기술)'를 선택했을 때만 텍스트 입력창이 나타나도록 구현
+    if sound_pref_type == "기타(자유 기술)":
+        sound_preference_detail = st.text_input("선호하는 음향 환경을 자유롭게 한 줄로 기술해 주세요.", placeholder="예: 잔잔한 클래식 음악 등")
+        final_sound_preference = f"기타: {sound_preference_detail}" if sound_preference_detail else "기타(내용 미입력)"
+    else:
+        final_sound_preference = sound_pref_type
     
     if st.button("실험 환경 조건 무작위 배정 및 테스트 시작", use_container_width=True, type="primary"):
-        anon_seed = str(time.time()) + str(age)
+        # 무작위 배정을 위한 임의 시드 해싱 연산
+        anon_seed = str(time.time()) + str(age) + str(fatigue)
         hash_val = int(hashlib.md5(anon_seed.encode('utf-8')).hexdigest(), 16)
         treatments = ["silent", "60bpm", "130bpm"]
         assigned_treatment = treatments[hash_val % 3]
@@ -177,19 +192,18 @@ elif st.session_state.page == "survey_pre":
         st.session_state.survey_data.update({
             "age": age,
             "sleep_time": f"{sleep_hour}:{sleep_min}",
-            "time_of_day": time_of_day,
             "fatigue": fatigue,
             "noise_sensitivity": noise_sensitivity,
-            "sound_preference": sound_preference,
+            "sound_preference": final_sound_preference,
             "treatment": assigned_treatment
         })
         
         st.session_state.current_block = 1
-        st.session_state.page = "block_intro"  # 수정 포인트: 설문조사 직후 바로 테스트 단계별 설명 페이지로 진입
+        st.session_state.page = "block_intro"
         st.rerun()
 
 # -------------------------------------------------------------------------
-# [1-5] 수정 완료: 각 단계(Block) 시작 전 대기 및 설명 페이지
+# [1-5] 각 단계(Block) 시작 전 대기 및 설명 페이지
 # -------------------------------------------------------------------------
 elif st.session_state.page == "block_intro":
     block = st.session_state.current_block
@@ -274,7 +288,7 @@ elif st.session_state.page == "rspan_test":
         st.rerun()
 
 # -------------------------------------------------------------------------
-# [3] 알파벳 자음 순서 회상 키패드 페이지 (하나씩 지우기 기능 추가됨)
+# [3] 알파벳 자음 순서 회상 키패드 페이지
 # -------------------------------------------------------------------------
 elif st.session_state.page == "rspan_recall":
     block = st.session_state.current_block
@@ -285,7 +299,6 @@ elif st.session_state.page == "rspan_recall":
     
     st.warning(f"현재 참여자 입력 궤적: {' ➔ '.join(st.session_state.user_recalled_letters)}")
     
-    # 키패드 그리드 그리기
     pad_cols = st.columns(4)
     for i, letter in enumerate(LETTERS_POOL):
         with pad_cols[i % 4]:
@@ -295,12 +308,11 @@ elif st.session_state.page == "rspan_recall":
                 
     st.write("---")
     
-    # 수정 완료: 하나씩 지우기(Backspace) 및 전체 삭제 레이아웃 구성
     c_back, c_clear, c_sub = st.columns([1, 1, 2])
     with c_back:
         if st.button("⬅️ 마지막 글자 취소", use_container_width=True):
             if len(st.session_state.user_recalled_letters) > 0:
-                st.session_state.user_recalled_letters.pop()  # 맨 뒤 요소만 제거
+                st.session_state.user_recalled_letters.pop()
             st.rerun()
     with c_clear:
         if st.button("🗑️ 전체 초기화", use_container_width=True):
@@ -327,7 +339,6 @@ elif st.session_state.page == "rspan_recall":
                 st.session_state.block_results[f"b{block}_accuracy"] = f"{accuracy}%"
                 st.session_state.block_results[f"b{block}_rt"] = mean_rt
                 
-                # 다음 단계 가기 전에 대기/설명(block_intro) 페이지를 거치도록 제어
                 if st.session_state.current_block < 3:
                     st.session_state.current_block += 1
                     st.session_state.page = "block_intro"
@@ -336,24 +347,29 @@ elif st.session_state.page == "rspan_recall":
                 st.rerun()
 
 # -------------------------------------------------------------------------
-# [4] 사후 집중도 및 기프티콘 추첨 설문조사 페이지
+# [4] 수정 완료: 사후 설문조사 페이지
 # -------------------------------------------------------------------------
 elif st.session_state.page == "survey_post":
-    st.title("📝 실험 사후 주관성 평가")
-    st.write("모든 태스크가 완료되었습니다. 마지막 문항에 답변해 주세요.")
+    st.title("📝 실험 사후 설문조사")
+    st.write("모든 테스트 태스크가 완료되었습니다. 마지막 문항에 성실히 답변해 주세요.")
     
-    satisfaction = st.slider("테스트를 진행하는 동안 본인의 집중도는 어떠했습니까? (1: 매우 산만함 ~ 5: 완벽히 집중함)", 1, 5, 3)
-    feedback = st.text_area("소음 조건(메트로놈 비트 소리 등)이 인지 태스크 수행에 어떤 영향을 주었는지 자유롭게 적어주세요.")
+    # 1. 테스트 중 주관적인 본인의 집중도
+    satisfaction = st.slider("테스트 중 주관적인 본인의 집중도 (1: 매우 산만함 ~ 5: 완벽히 집중함)", 1, 5, 3)
+    
+    # 2. 소음조건이 테스트 과정중 어떤 영향을 줬는가(1~2줄 요약 유도 문장형 기술)
+    feedback = st.text_area("배정된 소음 조건이 테스트 과정 중 본인의 기억력이나 집중력에 어떤 영향을 줬는지 1~2줄 내외로 작성해 주세요.")
     
     st.markdown("---")
     st.subheader("🎁 참여 감사 기프티콘 이벤트 (선택사항)")
-    st.write("아래에 전화번호를 남겨주시면, 추첨을 통해 감사의 의미로 스타벅스 기프티콘을 발송해 드립니다.")
-    phone_number = st.text_input("휴대폰 번호 입력 (예: 010-XXXX-XXXX)", placeholder="선택 사항이므로 기입하지 않으셔도 무방합니다.")
+    st.write("아래에 전화번호를 남겨주시면, 추첨을 통해 감사의 의미로 기프티콘을 발송해 드립니다.")
+    
+    # 3. 휴대폰 번호 입력(선택사항)
+    phone_number = st.text_input("휴대폰 번호 입력 (예: 010-XXXX-XXXX)", placeholder="선택사항이므로 입력하지 않으셔도 무방합니다.")
     
     if st.button("최종 실험 결과 데이터베이스 전송", use_container_width=True, type="primary"):
         st.session_state.survey_data.update({
             "satisfaction": satisfaction, 
-            "feedback": feedback,
+            "feedback": feedback if feedback else "내용 미입력",
             "phone_number": phone_number if phone_number else "미입력"
         })
         st.session_state.survey_data.update(st.session_state.block_results)
@@ -369,7 +385,6 @@ elif st.session_state.page == "survey_post":
                 sheet.append_row([
                     st.session_state.survey_data.get("age", ""),
                     st.session_state.survey_data.get("sleep_time", ""),
-                    st.session_state.survey_data.get("time_of_day", ""),
                     st.session_state.survey_data.get("fatigue", ""),
                     st.session_state.survey_data.get("noise_sensitivity", ""),
                     st.session_state.survey_data.get("sound_preference", ""),
@@ -390,8 +405,8 @@ elif st.session_state.page == "survey_post":
                 st.session_state.page = "complete"
                 st.rerun()
             except Exception as e:
-                st.error(f"시트 바인딩 중 누락 이슈 발생: {e}")
-                st.info("임시 확인용 로컬 세션 데이터 캐시 스냅샷:")
+                st.error(f"시트 전송 중 오류 발생: {e}")
+                st.info("임시 확인용 데이터 캐시 로그:")
                 st.code(str(st.session_state.survey_data))
 
 # -------------------------------------------------------------------------
@@ -399,6 +414,6 @@ elif st.session_state.page == "survey_post":
 # -------------------------------------------------------------------------
 elif st.session_state.page == "complete":
     st.title("🎉 테스트 및 설문 제출 완료")
-    st.success("모든 실험 프로세스가 안전하게 종료되었습니다. 학술 연구에 귀중한 시간을 내어 참여해 주셔서 대단히 감사합니다.")
+    st.success("모든 실험 프로세스가 안전하게 종료되었습니다. 학술 연구에 참여해 주셔서 감사합니다.")
     st.balloons()
     st.json(st.session_state.survey_data)
