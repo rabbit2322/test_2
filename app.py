@@ -29,7 +29,7 @@ if "page" not in st.session_state:
 if "survey_data" not in st.session_state:
     st.session_state.survey_data = {}
 
-# 외부 패키지(scipy) 없이 WAV 메트로놈 데이터를 실시간 바이너리로 생성하는 함수
+# 외부 패키지(scipy) 없이 메트로놈 WAV 바이너리를 실시간 생성하는 함수
 def generate_pure_metronome(bpm, duration_seconds=20):
     sample_rate = 22050
     num_channels = 1
@@ -79,29 +79,16 @@ if st.session_state.page == "survey_pre":
     st.write("본 연구 데이터 수집을 위해 아래 문항에 응답해 주세요.")
     
     name = st.text_input("참여자 이름 / 고유 식별 ID")
-    
-    # [제약] 만 19세에서 29세 까지만 입력 가능하게 범위 픽스
-    age = st.number_input("나이 (만 나이 기준)", min_value=19, max_value=29, value=23, 
-                          help="본 실험은 만 19세부터 29세 대상 연구입니다.")
-    
-    # [제약] 여성과 남성만 선택가능 (선택 안함 없음)
+    age = st.number_input("나이 (만 나이 기준)", min_value=19, max_value=29, value=23)
     gender = st.selectbox("성별", ["여성", "남성"])
-    
-    # [제약] 수면 시간 00시 00분 타임 셀렉터 포맷
     sleep_time = st.time_input("어제 수면 시간 (취침 시각)", value=time.fromisoformat("23:00:00"))
-    
-    # [제약] 현재 피로도 척도 (1~5)
     fatigue = st.slider("현재 본인이 느끼는 피로도는 어느 정도입니까? (1: 매우 개운함 ~ 5: 매우 피로함)", 1, 5, 3)
-    
-    # [제약] 평소 소음 민감도 (1~5)
     noise_sensitivity = st.slider("평소 일상생활 소음에 얼마나 민감하십니까? (1: 매우 둔감함 ~ 5: 매우 민감함)", 1, 5, 3)
-    
     sound_preference = st.radio("평소 어떤 음향 환경을 선호하십니까?", 
                                 ["완전한 무음 상태", "적당한 백색소음(카페, 자연음)", "잔잔한 음악이나 가요", "일정한 박자의 비트나 메트로놈"])
     
     if st.button("실험 환경 확인 및 테스트 시작", use_container_width=True):
         if name:
-            # 피험자 고유 ID 기반 해시 처리로 엑셀 수동 배정 없이 무음/60/130 분배 균등 고정
             hash_val = int(hashlib.md5(name.encode('utf-8')).hexdigest(), 16)
             treatments = ["silent", "60bpm", "130bpm"]
             assigned_treatment = treatments[hash_val % 3]
@@ -113,7 +100,6 @@ if st.session_state.page == "survey_pre":
                 "treatment": assigned_treatment
             })
             
-            # 문장 조립 파싱
             shuffled_pool = random.sample(RSPAN_RAW_SENTENCES, len(RSPAN_RAW_SENTENCES))
             processed_sentences = []
             
@@ -186,13 +172,15 @@ elif st.session_state.page == "rspan_test":
                 st.session_state.sub_stage = "letter"
                 st.rerun()
 
-    # [요구사항 2] 단어(글자) 노출 타임아웃 정확히 0.5초 고정 후 리런
     elif st.session_state.sub_stage == "letter":
         st.subheader("💡 나타난 글자의 알파벳 자음을 기억하세요")
         tgt = st.session_state.selected_letters[idx]
         
-        st.markdown(f"<h1 style='text-align: center; font-size: 130px; color: #FF4B4B; font-weight: bold;'>{tgt}</h1>", unsafe_allow_html=True)
+        # 0.5초 노출을 빈 컨테이너 제어로 동기화 처리
+        placeholder = st.empty()
+        placeholder.markdown(f"<h1 style='text-align: center; font-size: 130px; color: #FF4B4B; font-weight: bold;'>{tgt}</h1>", unsafe_allow_html=True)
         time.sleep(0.5)
+        placeholder.empty()
         
         if idx + 1 < st.session_state.set_size:
             st.session_state.current_step += 1
@@ -245,7 +233,6 @@ elif st.session_state.page == "rspan_recall":
 elif st.session_state.page == "survey_post":
     st.title("📝 사후 평가 문항")
     
-    # 집중도 자가평가 (1~5 척도 구성)
     satisfaction = st.slider("방금 진행한 인지 과제 중 자신의 집중도 자가평가 수치를 선택해 주세요. (1: 매우 산만함 ~ 5: 완벽히 집중함)", 1, 5, 3)
     feedback = st.text_area("그 외 소음 조건 환경에서 느껴진 주관적 반응 기술")
     
