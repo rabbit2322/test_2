@@ -83,7 +83,7 @@ def generate_pure_metronome(bpm, duration_seconds=30):
     
     return bytes(header + data_bytes)
 
-# 블록별 세트 크기 정의
+#  블록별 세트 크기 정의
 def get_set_size():
     mapping = {1: 3, 2: 5, 3: 7}
     return mapping.get(st.session_state.current_block, 3)
@@ -146,44 +146,48 @@ if st.session_state.page == "instruction":
         st.rerun()
 
 # -------------------------------------------------------------------------
-# [1] 수정 완료: 사전 설문조사 페이지
+# [1] 수정 완료: 1. 사전 설문조사 (Pre-test Questionnaire)
 # -------------------------------------------------------------------------
 elif st.session_state.page == "survey_pre":
-    st.title("📋 실험 전 사전 설문조사")
-    st.write("연구 분석을 위해 아래 문항에 응답해 주시기 바랍니다. (개인 식별 이름은 수집하지 않습니다)")
+    st.title("📋 1. 사전 설문조사 (Pre-test Questionnaire)")
+    st.write("연구 분석을 위해 아래 문항에 응답해 주시기 바랍니다.")
     
-    # 1. 참가자의 나이
-    age = st.number_input("참가자의 나이 (만 나이 기준)", min_value=10, max_value=60, value=23)
+    # 피험자 연령: 만 ( )세 (만 19세~29세)
+    age = st.number_input("피험자 연령: 만 ( )세 (만 19세~29세)", min_value=19, max_value=29, value=23)
     
-    # 2. 잠든 시각 (시, 분)
-    st.write("**잠든 시각 (취침 시각)**")
+    # 전일 수면 시간: ( )시 ( )분 취침
+    st.write("**전일 수면 시간**")
     c_hour, c_min = st.columns(2)
     with c_hour:
         sleep_hour = st.selectbox("시 (Hour)", options=[f"{i:02d}" for i in range(24)], index=23)
     with c_min:
         sleep_min = st.selectbox("분 (Minute)", options=[f"{i:02d}" for i in range(0, 60, 10)], index=0)
     
-    # 3. 주관적인 현재 피로도
+    # 주관적인 현재 피로도
     fatigue = st.slider("주관적인 현재 피로도 (1: 매우 개운함 ~ 5: 매우 피로함)", 1, 5, 3)
     
-    # 4. 주관적인 소음 민감도
+    # 주관적인 소음 민감도
     noise_sensitivity = st.slider("주관적인 소음 민감도 (1: 매우 둔감함 ~ 5: 매우 민감함)", 1, 5, 3)
     
-    # 5. 평소 선호하는 음향환경 선택지 및 기타 분기 구조 처리
+    # 평소 선호하는 음향 학습 환경
     sound_pref_type = st.radio(
-        "평소 선호하는 음향환경을 선택해 주세요.",
-        ["정적(무음)", "백색소음", "적당한 소음이 있는 환경(ex: 카페)", "기타(자유 기술)"]
+        "평소 선호하는 음향 학습 환경을 선택해주세요.",
+        [
+            "① 완전한 정적 (예: 무음 환경)",
+            "② 지속적인 백색소음 (예: 팬 소리, 빗소리 등)",
+            "③ 적당한 생활 소음이 있는 환경 (예: 카페 등)",
+            "④ 기타 (자유 기술)"
+        ]
     )
     
-    # '기타(자유 기술)'를 선택했을 때만 텍스트 입력창이 나타나도록 구현
-    if sound_pref_type == "기타(자유 기술)":
-        sound_preference_detail = st.text_input("선호하는 음향 환경을 자유롭게 한 줄로 기술해 주세요.", placeholder="예: 잔잔한 클래식 음악 등")
+    # ④ 기타 선택 시 자유 기술 칸 활성화
+    if sound_pref_type == "④ 기타 (자유 기술)":
+        sound_preference_detail = st.text_input("기타 (자유 기술) 내용을 적어주세요. (예: 잔잔한 클래식 음악 등)", placeholder="기타 환경 기술")
         final_sound_preference = f"기타: {sound_preference_detail}" if sound_preference_detail else "기타(내용 미입력)"
     else:
         final_sound_preference = sound_pref_type
     
     if st.button("실험 환경 조건 무작위 배정 및 테스트 시작", use_container_width=True, type="primary"):
-        # 무작위 배정을 위한 임의 시드 해싱 연산
         anon_seed = str(time.time()) + str(age) + str(fatigue)
         hash_val = int(hashlib.md5(anon_seed.encode('utf-8')).hexdigest(), 16)
         treatments = ["silent", "60bpm", "130bpm"]
@@ -347,24 +351,26 @@ elif st.session_state.page == "rspan_recall":
                 st.rerun()
 
 # -------------------------------------------------------------------------
-# [4] 수정 완료: 사후 설문조사 페이지
+# [4] 수정 완료: 2. 사후 설문조사 (Post-test Questionnaire)
 # -------------------------------------------------------------------------
 elif st.session_state.page == "survey_post":
-    st.title("📝 실험 사후 설문조사")
+    st.title("📝 2. 사후 설문조사 (Post-test Questionnaire)")
     st.write("모든 테스트 태스크가 완료되었습니다. 마지막 문항에 성실히 답변해 주세요.")
     
-    # 1. 테스트 중 주관적인 본인의 집중도
+    # 테스트 중 주관적인 본인의 집중도 (1: 매우 산만함 ~ 5: 완벽히 집중함)
     satisfaction = st.slider("테스트 중 주관적인 본인의 집중도 (1: 매우 산만함 ~ 5: 완벽히 집중함)", 1, 5, 3)
     
-    # 2. 소음조건이 테스트 과정중 어떤 영향을 줬는가(1~2줄 요약 유도 문장형 기술)
-    feedback = st.text_area("배정된 소음 조건이 테스트 과정 중 본인의 기억력이나 집중력에 어떤 영향을 줬는지 1~2줄 내외로 작성해 주세요.")
+    # 주관적 영향 기술란 및 안내 예시 문구 매핑
+    st.caption("💡 예시 안내: 음향이 집중, 기억 회상, 심리적 부담 등에 어떤 영향을 주었는지 간략히 기술해 주십시오.")
+    feedback = st.text_area(
+        "배정된 소음 조건이 테스트 과정 중 본인의 기억력이나 집중력에 어떤 영향을 줬는지 1~2줄 내외로 작성해 주세요.",
+        placeholder="예시: 일정한 박자 소리가 들려 오히려 잡생각을 막고 리듬감 있게 외우는 데 도움이 되었습니다. / 소리가 빨라질 때 심리적 부담이 생겨 자음을 놓쳤습니다."
+    )
     
     st.markdown("---")
-    st.subheader("🎁 참여 감사 기프티콘 이벤트 (선택사항)")
-    st.write("아래에 전화번호를 남겨주시면, 추첨을 통해 감사의 의미로 기프티콘을 발송해 드립니다.")
-    
-    # 3. 휴대폰 번호 입력(선택사항)
-    phone_number = st.text_input("휴대폰 번호 입력 (예: 010-XXXX-XXXX)", placeholder="선택사항이므로 입력하지 않으셔도 무방합니다.")
+    st.subheader("🎁 연락처 수집 (선택 사항)")
+    st.write("기프티콘 이벤트 추첨 및 진행 안내를 위한 항목입니다.")
+    phone_number = st.text_input("휴대폰 번호 입력 (예: 010-XXXX-XXXX)", placeholder="선택 사항이므로 기입하지 않으셔도 무방합니다.")
     
     if st.button("최종 실험 결과 데이터베이스 전송", use_container_width=True, type="primary"):
         st.session_state.survey_data.update({
