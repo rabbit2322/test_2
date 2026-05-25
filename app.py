@@ -2,6 +2,8 @@ import streamlit as st
 import time
 import pandas as pd
 import random
+import numpy as np
+import math
 import gspread
 
 # 페이지 설정
@@ -12,6 +14,35 @@ if "page" not in st.session_state:
     st.session_state.page = "survey_pre"
 if "survey_data" not in st.session_state:
     st.session_state.survey_data = {}
+
+# 📢 [순수 파이썬] 메트로놈 소리 실시간 생성 함수
+def generate_metronome_sound(bpm, duration_seconds=10):
+    sample_rate = 22050  # 오디오 샘플링 레이트
+    total_samples = int(sample_rate * duration_seconds)
+    t = np.linspace(0, duration_seconds, total_samples, endpoint=False)
+    
+    # 빈 오디오 배열 생성
+    audio_signal = np.zeros(total_samples)
+    
+    # BPM에 따른 1비트당 시간 간격 (60bpm = 1초에 한 번, 130bpm = 약 0.46초에 한 번)
+    beat_interval = 60.0 / bpm
+    click_duration = 0.05  # "삑" 소리가 날 길이 (0.05초)
+    click_samples = int(sample_rate * click_duration)
+    
+    # 0.05초짜리 880Hz(고음 피치) 사인파 클릭음 생성
+    t_click = np.linspace(0, click_duration, click_samples, endpoint=False)
+    click_wave = np.sin(2 * math.pi * 880 * t_click) * 0.5  # 볼륨 조절
+    
+    # 지정된 간격마다 클릭음 심기
+    current_time = 0.0
+    while current_time < duration_seconds:
+        start_idx = int(current_time * sample_rate)
+        end_idx = start_idx + click_samples
+        if end_idx < total_samples:
+            audio_signal[start_idx:end_idx] = click_wave
+        current_time += beat_interval
+        
+    return audio_signal, sample_rate
 
 # -------------------------------------------------------------------------
 # 1. 사전 설문조사 페이지
@@ -35,7 +66,7 @@ if st.session_state.page == "survey_pre":
             st.error("이름 또는 ID를 입력해주세요.")
 
 # -------------------------------------------------------------------------
-# 2. RST 안내 및 테스트 페이지
+# 2. RST 안내 및 테스트 페이지 (메트로놈 내장)
 # -------------------------------------------------------------------------
 elif st.session_state.page == "rst_instr":
     st.title("🎵 RST (반응 시간 테스트) 안내")
@@ -58,16 +89,15 @@ elif st.session_state.page == "rst_test":
             st.write("아무런 소리가 나지 않는 상태입니다. 준비가 되면 아래 '지금 클릭!' 버튼을 누르세요.")
     else:
         with st.container(key="music_container"):
-            st.subheader(f"🎵 현재 처치: {treatment} 음악 재생")
-            st.write("아래 유튜브 비디오의 재생 버튼을 누르고 음악을 들으면서 '지금 클릭!' 버튼을 누르세요.")
+            st.subheader(f"⏱️ 현재 처치: {treatment} 메트로놈 재생")
+            st.write("아래 오디오 플레이어의 재생(▶️) 버튼을 누르고 메트로놈 소리에 맞춰 '지금 클릭!' 버튼을 누르세요.")
             
-            # 본인의 유튜브 영상 링크 ID가 있다면 뒤에 넣어주세요. (예: dQw4w9WgXcQ)
-            if treatment == "60bpm":
-                youtube_url = "https://youtu.be/ymJIXzvDvj4?si=54aZDLmc69OhedxV"
-            elif treatment == "130bpm":
-                youtube_url = "https://youtu.be/koTb8E5PpKM?si=Or_leA5j7EMgLeXP"
-                
-            st.video(youtube_url, key=f"video_{treatment}")
+            # 파이썬 코드로 지정된 BPM 메트로놈 생성 (10초 분량)
+            bpm_value = 60 if treatment == "60bpm" else 130
+            audio_data, sample_rate = generate_metronome_sound(bpm_value, duration_seconds=10)
+            
+            # 🌟 외부 주소 없이 파이썬 내부 배열을 오디오로 즉시 재생! 에러 가능성 0%
+            st.audio(audio_data, sample_rate=sample_rate, format="audio/wav")
     
     st.write("---")
     
@@ -90,7 +120,7 @@ elif st.session_state.page == "survey_post":
     st.title("📝 사후 설문조사")
     st.write("테스트가 끝났습니다. 마지막 설문에 응답해주세요.")
     
-    satisfaction = st.slider("방금 들은 음악은 어떠셨나요? (1: 매우 나쁨 ~ 5: 매우 좋음)", 1, 5, 3)
+    satisfaction = st.slider("방금 들은 환경은 어떠셨나요? (1: 매우 나쁨 ~ 5: 매우 좋음)", 1, 5, 3)
     feedback = st.text_area("기타 의견")
     
     if st.button("최종 제출"):
@@ -105,7 +135,6 @@ elif st.session_state.page == "survey_post":
                 sh = gc.open_by_url(sheet_url)
                 worksheet = sh.get_worksheet(0)
                 
-                # 🌟 st.session_data -> st.session_state 로 올바르게 수정 완료!
                 row_data = [
                     st.session_state.survey_data.get("name", ""),
                     st.session_state.survey_data.get("age", ""),
