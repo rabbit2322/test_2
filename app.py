@@ -3,6 +3,7 @@ import time
 import random
 import math
 import base64
+import os
 import gspread
 import hashlib
 
@@ -12,32 +13,28 @@ st.set_page_config(page_title="RSPAN 작업기억 테스트", layout="centered")
 # 전역 알파벳 자음 풀
 LETTERS_POOL = ["F", "H", "J", "K", "L", "N", "P", "Q", "R", "S", "T", "Y"]
 
-# RSPAN 문장 데이터베이스 (충분한 양 확보)
-RSPAN_RAW_SENTENCES = [
-    {"template": "그 작가는 글을 다 쓸 때까지 짧고 빠른 스퍼트로 자신의 {책|악어}을 집필했다."},
-    {"template": "경찰관은 불법 유턴을 한 운전자에게 다가가 {면허증|시계탑}과 등록증을 요구했다."},
-    {"template": "엄격한 채식주의자인 제니퍼는 회식 자리에서 {치킨|자동차}이나 소고기를 전혀 먹지 않았다."},
-    {"template": "마크는 세탁기에 세제를 너무 많이 넣어서 {거품|스마트폰}이 사방으로 넘쳐흘렀다."},
-    {"template": "음주 운전자는 통제력을 잃고 도로 {표지판|노트북}을 들이받은 후 체포되었다."},
-    {"template": "신부는 결혼식 도중 부모님의 편지를 듣고 감동을 받아 {눈물|손톱깎이}을 흘렸다."},
-    {"template": "캠핑장에 나타난 거대한 곰은 맛있는 냄새를 풍기는 {바비큐|잔디깎이}를 향해 걸어왔다."},
-    {"template": "지하철 연착으로 인해 출근 시간 대의 플랫폼은 수많은 {직장인|열대과일}들로 붐볐다."},
-    {"template": "할머니는 추운 겨울날 거실에 모여 앉아 따뜻한 {목도리|헤드폰}를 뜨개질하셨다."},
-    {"template": "목수는 새 집의 지붕을 튼튼하게 고치기 위해 하루 종일 {망치|식기세척기}를 사용했다."},
-    {"template": "사육사는 배가 고파 울부짖는 아기 사자에게 신선한 {우유|지우개}를 젖병에 담아 먹였다."},
-    {"template": "기상청은 내일 오후부터 강한 바람과 함께 많은 {장마비|프린터}가 내릴 것이라고 예보했다."},
-    {"template": "화가는 커다란 캔버스 위에 아름다운 정원의 {풍경|선풍기}을 정성스럽게 그려 나갔다."},
-    {"template": "독서실에서 공부하던 수험생은 졸음을 쫓기 위해 시원한 {캔커피|슬리퍼}를 마셨다."},
-    {"template": "요리사는 잘 익은 토마토와 신선한 야채를 다져서 맛있는 {소스|벽걸이시계}를 만들었다."}
-]
+# 외부 텍스트 파일(sentences.txt)에서 문장 로드하는 함수
+@st.cache_data
+def load_sentences(file_path="sentences.txt"):
+    sentences = []
+    if os.path.exists(file_path):
+        with open(file_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line:  # 빈 줄이 아니면 리스트에 추가
+                    sentences.append({"template": line})
+    return sentences
+
+# 문장 데이터셋 불러오기
+RSPAN_RAW_SENTENCES = load_sentences("sentences.txt")
 
 # 세션 상태(State) 초기화
 if "page" not in st.session_state:
-    st.session_state.page = "instruction"  # 안내 페이지부터 시작
+    st.session_state.page = "instruction"
 if "survey_data" not in st.session_state:
     st.session_state.survey_data = {}
 if "current_block" not in st.session_state:
-    st.session_state.current_block = 1  # 1단계(3개), 2단계(5개), 3단계(7개)
+    st.session_state.current_block = 1
 if "block_results" not in st.session_state:
     st.session_state.block_results = {}
 
@@ -83,7 +80,7 @@ def generate_pure_metronome(bpm, duration_seconds=30):
     
     return bytes(header + data_bytes)
 
-#  블록별 세트 크기 정의
+# 블록별 세트 크기 정의
 def get_set_size():
     mapping = {1: 3, 2: 5, 3: 7}
     return mapping.get(st.session_state.current_block, 3)
@@ -91,9 +88,14 @@ def get_set_size():
 # 새 블록 시작 시 태스크 상태 초기화 함수
 def init_block_task():
     set_size = get_set_size()
+    
+    # 문장 파일 로드 예외 처리
+    if not RSPAN_RAW_SENTENCES:
+        st.error("🚨 'sentences.txt' 파일이 없거나 비어 있어 실험을 진행할 수 없습니다.")
+        st.stop()
+        
     shuffled_pool = random.sample(RSPAN_RAW_SENTENCES, min(set_size, len(RSPAN_RAW_SENTENCES)))
     
-    # 부족할 경우 중복 허용 채움
     while len(shuffled_pool) < set_size:
         shuffled_pool.append(random.choice(RSPAN_RAW_SENTENCES))
         
@@ -146,11 +148,15 @@ if st.session_state.page == "instruction":
         st.rerun()
 
 # -------------------------------------------------------------------------
-# [1] 수정 완료: 1. 사전 설문조사 (Pre-test Questionnaire)
+# [1] 1. 사전 설문조사 (Pre-test Questionnaire)
 # -------------------------------------------------------------------------
 elif st.session_state.page == "survey_pre":
     st.title("📋 1. 사전 설문조사 (Pre-test Questionnaire)")
     st.write("연구 분석을 위해 아래 문항에 응답해 주시기 바랍니다.")
+    
+    # 파일 부재 시 설문 진입 단계에서 사전 경고 처리
+    if not RSPAN_RAW_SENTENCES:
+        st.error("⚠️ 경고: 폴더 내 'sentences.txt' 파일이 누락되었거나 비어 있습니다. 파일 배치를 확인해 주세요.")
     
     # 피험자 연령: 만 ( )세 (만 19세~29세)
     age = st.number_input("피험자 연령: 만 ( )세 (만 19세~29세)", min_value=19, max_value=29, value=23)
@@ -163,13 +169,13 @@ elif st.session_state.page == "survey_pre":
     with c_min:
         sleep_min = st.selectbox("분 (Minute)", options=[f"{i:02d}" for i in range(0, 60, 10)], index=0)
     
-    # 주관적인 현재 피로도
+    # 주관적인 현재 피로도 (1: 매우 개운함 ~ 5: 매우 피로함)
     fatigue = st.slider("주관적인 현재 피로도 (1: 매우 개운함 ~ 5: 매우 피로함)", 1, 5, 3)
     
-    # 주관적인 소음 민감도
+    # 주관적인 소음 민감도 (1: 매우 둔감함 ~ 5: 매우 민감함)
     noise_sensitivity = st.slider("주관적인 소음 민감도 (1: 매우 둔감함 ~ 5: 매우 민감함)", 1, 5, 3)
     
-    # 평소 선호하는 음향 학습 환경
+    # 평소 선호하는 음향 학습 환경을 선택해주세요.
     sound_pref_type = st.radio(
         "평소 선호하는 음향 학습 환경을 선택해주세요.",
         [
@@ -180,9 +186,9 @@ elif st.session_state.page == "survey_pre":
         ]
     )
     
-    # ④ 기타 선택 시 자유 기술 칸 활성화
+    # ④ 기타 (자유 기술) 처리
     if sound_pref_type == "④ 기타 (자유 기술)":
-        sound_preference_detail = st.text_input("기타 (자유 기술) 내용을 적어주세요. (예: 잔잔한 클래식 음악 등)", placeholder="기타 환경 기술")
+        sound_preference_detail = st.text_input("기타 (자유 기술) 내용을 적어주세요. (예: 잔잔한 클래식 음악 등)", placeholder="여기에 자유롭게 작성")
         final_sound_preference = f"기타: {sound_preference_detail}" if sound_preference_detail else "기타(내용 미입력)"
     else:
         final_sound_preference = sound_pref_type
@@ -238,7 +244,6 @@ elif st.session_state.page == "rspan_test":
     st.title(f"🕹️ RSPAN 테스트 진행 중 [현재 {block}단계 / 총 3단계]")
     st.subheader(f"🔊 소음 자극 환경 조건: {treatment.upper()}")
     
-    # 메트로놈 자동 재생 처리
     if treatment != "silent":
         bpm_val = 60 if treatment == "60bpm" else 130
         audio_bytes = generate_pure_metronome(bpm_val, duration_seconds=40)
@@ -247,7 +252,6 @@ elif st.session_state.page == "rspan_test":
 
     idx = st.session_state.current_step
     
-    # 서브 스테이지 1: 문장 판단
     if st.session_state.sub_stage == "sentence":
         st.markdown(f"### 📊 문장 진위 판단 (`{idx + 1}` / `{st.session_state.set_size}`개 제시됨)")
         current_sentence = st.session_state.selected_sentences[idx]["text"]
@@ -274,7 +278,6 @@ elif st.session_state.page == "rspan_test":
                 st.session_state.sub_stage = "letter"
                 st.rerun()
 
-    # 서브 스테이지 2: 글자 순간 제시
     elif st.session_state.sub_stage == "letter":
         st.subheader("💡 나타난 알파벳 자음을 기억하세요!")
         tgt = st.session_state.selected_letters[idx]
@@ -351,7 +354,7 @@ elif st.session_state.page == "rspan_recall":
                 st.rerun()
 
 # -------------------------------------------------------------------------
-# [4] 수정 완료: 2. 사후 설문조사 (Post-test Questionnaire)
+# [4] 2. 사후 설문조사 (Post-test Questionnaire)
 # -------------------------------------------------------------------------
 elif st.session_state.page == "survey_post":
     st.title("📝 2. 사후 설문조사 (Post-test Questionnaire)")
@@ -360,16 +363,15 @@ elif st.session_state.page == "survey_post":
     # 테스트 중 주관적인 본인의 집중도 (1: 매우 산만함 ~ 5: 완벽히 집중함)
     satisfaction = st.slider("테스트 중 주관적인 본인의 집중도 (1: 매우 산만함 ~ 5: 완벽히 집중함)", 1, 5, 3)
     
-    # 주관적 영향 기술란 및 안내 예시 문구 매핑
+    # 소음조건 영향 및 상세 안내 가이드라인
     st.caption("💡 예시 안내: 음향이 집중, 기억 회상, 심리적 부담 등에 어떤 영향을 주었는지 간략히 기술해 주십시오.")
     feedback = st.text_area(
         "배정된 소음 조건이 테스트 과정 중 본인의 기억력이나 집중력에 어떤 영향을 줬는지 1~2줄 내외로 작성해 주세요.",
-        placeholder="예시: 일정한 박자 소리가 들려 오히려 잡생각을 막고 리듬감 있게 외우는 데 도움이 되었습니다. / 소리가 빨라질 때 심리적 부담이 생겨 자음을 놓쳤습니다."
+        placeholder="예시: 소리의 박자가 빨라질 때 흐름이 흐트러져 단어 기억에 부담을 느꼈습니다. / 무음 상태라 오롯이 문장 분석에만 몰입하기 수월했습니다."
     )
     
     st.markdown("---")
-    st.subheader("🎁 연락처 수집 (선택 사항)")
-    st.write("기프티콘 이벤트 추첨 및 진행 안내를 위한 항목입니다.")
+    st.subheader("📞 연락처 수집 (선택 사항)")
     phone_number = st.text_input("휴대폰 번호 입력 (예: 010-XXXX-XXXX)", placeholder="선택 사항이므로 기입하지 않으셔도 무방합니다.")
     
     if st.button("최종 실험 결과 데이터베이스 전송", use_container_width=True, type="primary"):
