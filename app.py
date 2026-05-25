@@ -146,13 +146,12 @@ if st.session_state.page == "instruction":
         st.rerun()
 
 # -------------------------------------------------------------------------
-# [1] 사전 설문조사 페이지 (문항 대폭 수정)
+# [1] 사전 설문조사 페이지
 # -------------------------------------------------------------------------
 elif st.session_state.page == "survey_pre":
     st.title("📋 실험 전 사전 설문조사")
     st.write("연구 분석을 위해 솔직하게 응답해 주시기 바랍니다. (참여자 이름은 수집하지 않습니다)")
     
-    # 문항 변경: 나이 및 수면 시각 선택 UI 조절
     age = st.number_input("나이 (만 나이 기준)", min_value=15, max_value=50, value=23)
     
     st.write("**어제 수면 시각을 선택해 주세요.**")
@@ -162,17 +161,14 @@ elif st.session_state.page == "survey_pre":
     with c_min:
         sleep_min = st.selectbox("분 (Minute)", options=[f"{i:02d}" for i in range(0, 60, 10)], index=0)
     
-    # 문항 추가: 오전/오후 참여 시간대
     time_of_day = st.radio("현재 참여하고 계신 시간대는 언제입니까?", ["오전 (00:00 ~ 12:00)", "오후 (12:00 ~ 24:00)"])
     
     fatigue = st.slider("현재 본인이 느끼는 피로도는 어느 정도입니까? (1: 매우 개운함 ~ 5: 매우 피로함)", 1, 5, 3)
     noise_sensitivity = st.slider("평소 일상생활 소음에 얼마나 민감하십니까? (1: 매우 둔감함 ~ 5: 매우 민감함)", 1, 5, 3)
     
-    # 문항 변경: 주관식 단답형 형태로 수정
     sound_preference = st.text_input("평소 어떤 음향 환경을 선호하십니까? (예: 완전한 무음, 카페 소음, 잔잔한 음악 등 옆에 한줄로 적어달라고 적기)")
     
     if st.button("실험 환경 조건 무작위 배정 및 테스트 시작", use_container_width=True, type="primary"):
-        # 익명 난수 기반으로 집단 배정 처리 (이름 제외 대응)
         anon_seed = str(time.time()) + str(age)
         hash_val = int(hashlib.md5(anon_seed.encode('utf-8')).hexdigest(), 16)
         treatments = ["silent", "60bpm", "130bpm"]
@@ -188,14 +184,34 @@ elif st.session_state.page == "survey_pre":
             "treatment": assigned_treatment
         })
         
-        # 1단계 블록 태스크 초기화 가동
         st.session_state.current_block = 1
+        st.session_state.page = "block_intro"  # 수정 포인트: 설문조사 직후 바로 테스트 단계별 설명 페이지로 진입
+        st.rerun()
+
+# -------------------------------------------------------------------------
+# [1-5] 수정 완료: 각 단계(Block) 시작 전 대기 및 설명 페이지
+# -------------------------------------------------------------------------
+elif st.session_state.page == "block_intro":
+    block = st.session_state.current_block
+    set_size = get_set_size()
+    
+    st.title(f"🏁 {block}단계 테스트 시작 안내")
+    st.markdown(f"""
+    지금부터 **{block}단계** 테스트를 시작합니다.
+    
+    * 이번 단계에서는 총 **{set_size}개**의 문장 판단과 **{set_size}개**의 알파벳 자음이 제시됩니다.
+    * 문장 참/거짓 판단을 마치는 즉시 알파벳이 등장하니 집중해 주시기 바랍니다.
+    
+    준비가 완료되었다면 아래 버튼을 눌러 시작하세요.
+    """)
+    
+    if st.button(f"{block}단계 과제 시작하기", use_container_width=True, type="primary"):
         init_block_task()
         st.session_state.page = "rspan_test"
         st.rerun()
 
 # -------------------------------------------------------------------------
-# [2] 본 실험 인지 태스크 수행 페이지 (3단계 분할 구조 반영)
+# [2] 본 실험 인지 태스크 수행 페이지
 # -------------------------------------------------------------------------
 elif st.session_state.page == "rspan_test":
     treatment = st.session_state.survey_data["treatment"]
@@ -258,7 +274,7 @@ elif st.session_state.page == "rspan_test":
         st.rerun()
 
 # -------------------------------------------------------------------------
-# [3] 알파벳 자음 순서 회상 키패드 페이지 (개수 상한/하한 경고 강화)
+# [3] 알파벳 자음 순서 회상 키패드 페이지 (하나씩 지우기 기능 추가됨)
 # -------------------------------------------------------------------------
 elif st.session_state.page == "rspan_recall":
     block = st.session_state.current_block
@@ -278,9 +294,16 @@ elif st.session_state.page == "rspan_recall":
                 st.rerun()
                 
     st.write("---")
-    c_clear, c_sub = st.columns(2)
+    
+    # 수정 완료: 하나씩 지우기(Backspace) 및 전체 삭제 레이아웃 구성
+    c_back, c_clear, c_sub = st.columns([1, 1, 2])
+    with c_back:
+        if st.button("⬅️ 마지막 글자 취소", use_container_width=True):
+            if len(st.session_state.user_recalled_letters) > 0:
+                st.session_state.user_recalled_letters.pop()  # 맨 뒤 요소만 제거
+            st.rerun()
     with c_clear:
-        if st.button("🗑️ 선택 전체 초기화", use_container_width=True):
+        if st.button("🗑️ 전체 초기화", use_container_width=True):
             st.session_state.user_recalled_letters = []
             st.rerun()
             
@@ -288,13 +311,11 @@ elif st.session_state.page == "rspan_recall":
         if st.button("이 단계 제출 및 기록", use_container_width=True, type="primary"):
             user_len = len(st.session_state.user_recalled_letters)
             
-            # 피드백 반영: 자음 입력 개수 과잉 또는 부족 시 경고 문장 발생 후 세션 중단
             if user_len < set_size:
                 st.error(f"🚨 입력된 글자가 부족합니다! 현재 {user_len}개 선택하셨습니다. 목표 수치인 {set_size}개를 정확히 맞춰 제출해 주세요.")
             elif user_len > set_size:
                 st.error(f"🚨 입력된 글자가 너무 많습니다! 현재 {user_len}개 선택하셨습니다. 목표 수치인 {set_size}개를 정확히 맞춰 제출해 주세요.")
             else:
-                # 점수 및 반응속도 집계 저장
                 correct = st.session_state.selected_letters
                 user = st.session_state.user_recalled_letters
                 
@@ -306,11 +327,10 @@ elif st.session_state.page == "rspan_recall":
                 st.session_state.block_results[f"b{block}_accuracy"] = f"{accuracy}%"
                 st.session_state.block_results[f"b{block}_rt"] = mean_rt
                 
-                # 단계 전환 제어 (3단계까지 완료하면 설문 페이지로)
+                # 다음 단계 가기 전에 대기/설명(block_intro) 페이지를 거치도록 제어
                 if st.session_state.current_block < 3:
                     st.session_state.current_block += 1
-                    init_block_task()
-                    st.session_state.page = "rspan_test"
+                    st.session_state.page = "block_intro"
                 else:
                     st.session_state.page = "survey_post"
                 st.rerun()
@@ -331,13 +351,11 @@ elif st.session_state.page == "survey_post":
     phone_number = st.text_input("휴대폰 번호 입력 (예: 010-XXXX-XXXX)", placeholder="선택 사항이므로 기입하지 않으셔도 무방합니다.")
     
     if st.button("최종 실험 결과 데이터베이스 전송", use_container_width=True, type="primary"):
-        # 사후 데이터 통합 병합
         st.session_state.survey_data.update({
             "satisfaction": satisfaction, 
             "feedback": feedback,
             "phone_number": phone_number if phone_number else "미입력"
         })
-        # 블록별 세부 성적 지표 최종 통합
         st.session_state.survey_data.update(st.session_state.block_results)
         
         with st.spinner("클라우드 데이터베이스 전송 트래픽 처리 중..."):
@@ -348,7 +366,6 @@ elif st.session_state.page == "survey_post":
                 client = gspread.service_account_from_dict(creds)
                 sheet = client.open_by_url(sheet_url).get_worksheet(0)
                 
-                # 구글 시트에 행 단위 추가 데이터 적재
                 sheet.append_row([
                     st.session_state.survey_data.get("age", ""),
                     st.session_state.survey_data.get("sleep_time", ""),
