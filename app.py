@@ -40,59 +40,37 @@ if st.session_state.page == "survey_pre":
 # -------------------------------------------------------------------------
 # 2. RST 안내 및 테스트 페이지 (60BPM, 130BPM, 무음 랜덤 버전)
 # -------------------------------------------------------------------------
-elif st.session_state.page == "rst_instr":
-    st.title("🎵 RST (반응 시간 테스트) 안내")
-    st.write("이제 테스트가 시작됩니다. 화면에 지시사항이 나오면 확인 후 아래 버튼을 최대한 빠르게 눌러주세요.")
-    
-    if st.button("테스트 시작"):
-        # 🎲 세 가지 처치 중 하나를 무작위로 선택하여 세션에 저장
-        # (참여자마다 독립적으로 랜덤 배정됩니다)
-        treatments = ["60bpm", "130bpm", "silent"]
-        st.session_state.current_treatment = random.choice(treatments)
-        
-        # 사후 설문조사 결과와 함께 저장하기 위해 미리 기록
-        st.session_state.survey_data["treatment"] = st.session_state.current_treatment
-        
-        st.session_state.page = "rst_test"
-        st.rerun()
-
 elif st.session_state.page == "rst_test":
     st.title("🕹️ RST 진행 중")
     
-    # 현재 배정된 처치 확인
     treatment = st.session_state.current_treatment
     
-    # 1. 무음(silent) 처치일 때
-    if treatment == "silent":
-        st.subheader("🤫 현재 처치: 무음 환경")
-        st.write("아무런 소리가 나지 않는 상태입니다. 준비가 되면 아래 '지금 클릭!' 버튼을 누르세요.")
+    # 🌟 모든 조건에서 제목과 안내를 통일하여 화면 구조를 유지합니다.
+    st.subheader(f"🎵 현재 테스트 환경에 진입했습니다.")
+    st.write("아래 유튜브 비디오의 재생 버튼을 누르고, 준비가 되면 '지금 클릭!' 버튼을 누르세요.")
     
-    # 2. 음악(60bpm 또는 130bpm) 처치일 때
-    else:
-        st.subheader(f"🎵 현재 처치: {treatment} 음악 재생")
-        st.write("아래 유튜브 비디오의 재생 버튼을 누르고 음악을 들으면서, 준비가 되면 '지금 클릭!' 버튼을 누르세요.")
+    # 무음 처치일 때도 '소리가 없는 유튜브 영상 링크'를 제공합니다.
+    if treatment == "silent":
+        # 예시: 10시간짜리 무음 영상 링크 (실제 존재하는 아무 무음 영상이나 넣으시면 됩니다)
+        youtube_url = "https://youtu.be/T8BEuSlWXLs?si=YZ7JIy9GyR5ScR5S" 
+    elif treatment == "60bpm":
+        youtube_url = "https://youtu.be/ymJIXzvDvj4?si=54aZDLmc69OhedxV"
+    elif treatment == "130bpm":
+        youtube_url = "https://youtu.be/koTb8E5PpKM?si=Or_leA5j7EMgLeXP"
         
-        # 각 조건에 맞는 유튜브 링크 설정 (본인의 유튜브 링크로 대체하세요)
-        if treatment == "60bpm":
-            youtube_url = "https://youtu.be/ymJIXzvDvj4?si=54aZDLmc69OhedxV"
-        elif treatment == "130bpm":
-            youtube_url = "https://youtu.be/koTb8E5PpKM?si=Or_leA5j7EMgLeXP"
-            
-        st.video(youtube_url)
+    # 🌟 무음이든 음성이든 무조건 st.video를 실행하므로 브라우저가 꼬이지 않습니다.
+    st.video(youtube_url)
     
     st.write("---")
     
-    # 시간 측정 시작 점 (페이지가 로드된 시점)
     if "start_time" not in st.session_state:
         st.session_state.start_time = time.time()
         
     if st.button("🎯 지금 클릭!", use_container_width=True):
         end_time = time.time()
-        # 소수점 3자리까지 초 단위 계산
         reaction_time = round(end_time - st.session_state.start_time, 3)
         st.session_state.survey_data["reaction_time"] = reaction_time
         
-        # 임시 변수 삭제 후 이동
         del st.session_state.start_time
         st.session_state.page = "survey_post"
         st.rerun()
