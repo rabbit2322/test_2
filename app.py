@@ -6,7 +6,7 @@ import base64
 import gspread
 import hashlib
 
-# 1. 페이지 설정 및 초기화
+# 1. 페이지 초기 설정
 st.set_page_config(page_title="RSPAN 작업기억 테스트", layout="centered")
 
 RSPAN_RAW_SENTENCES = [
@@ -24,12 +24,13 @@ RSPAN_RAW_SENTENCES = [
 
 LETTERS_POOL = ["F", "H", "J", "K", "L", "N", "P", "Q", "R", "S", "T", "Y"]
 
+# 세션 상태 초기화
 if "page" not in st.session_state:
     st.session_state.page = "survey_pre"
 if "survey_data" not in st.session_state:
     st.session_state.survey_data = {}
 
-# 외부 패키지(scipy) 없이 메트로놈 WAV 바이너리를 실시간 생성하는 함수
+# 외부 scipy 패키지 의존성 없이 메트로놈 음원을 메모리 상에서 자체 빌드하는 함수
 def generate_pure_metronome(bpm, duration_seconds=20):
     sample_rate = 22050
     num_channels = 1
@@ -72,7 +73,7 @@ def generate_pure_metronome(bpm, duration_seconds=20):
     return bytes(header + data_bytes)
 
 # -------------------------------------------------------------------------
-# 1. 사전 조사 단계
+# [1] 사전 설문조사 페이지
 # -------------------------------------------------------------------------
 if st.session_state.page == "survey_pre":
     st.title("📋 실험 전 사전 설문조사")
@@ -89,6 +90,7 @@ if st.session_state.page == "survey_pre":
     
     if st.button("실험 환경 확인 및 테스트 시작", use_container_width=True):
         if name:
+            # 피험자 이름 해싱 기반 무작위 집단 분류 로직 (삼분할 배정)
             hash_val = int(hashlib.md5(name.encode('utf-8')).hexdigest(), 16)
             treatments = ["silent", "60bpm", "130bpm"]
             assigned_treatment = treatments[hash_val % 3]
@@ -132,7 +134,7 @@ if st.session_state.page == "survey_pre":
             st.error("참여자 이름을 정확하게 기입해주셔야 배정이 완료됩니다.")
 
 # -------------------------------------------------------------------------
-# 2. 본 테스트 단계 (RSPAN 10문항)
+# [2] 본 실험 인지 태스크 수행 페이지
 # -------------------------------------------------------------------------
 elif st.session_state.page == "rspan_test":
     treatment = st.session_state.survey_data["treatment"]
@@ -176,7 +178,7 @@ elif st.session_state.page == "rspan_test":
         st.subheader("💡 나타난 글자의 알파벳 자음을 기억하세요")
         tgt = st.session_state.selected_letters[idx]
         
-        # 0.5초 노출을 빈 컨테이너 제어로 동기화 처리
+        # UI 레이턴시 및 잔상 방지를 위해 동적 empty 컨테이너 블록을 사용한 0.5초 노출 제어
         placeholder = st.empty()
         placeholder.markdown(f"<h1 style='text-align: center; font-size: 130px; color: #FF4B4B; font-weight: bold;'>{tgt}</h1>", unsafe_allow_html=True)
         time.sleep(0.5)
@@ -190,11 +192,11 @@ elif st.session_state.page == "rspan_test":
         st.rerun()
 
 # -------------------------------------------------------------------------
-# 자음 소환 패드 키보드 매트릭스 단계
+# [3] 알파벳 자음 순서 회상 키패드 페이지
 # -------------------------------------------------------------------------
 elif st.session_state.page == "rspan_recall":
-    st.title("⌨️ Letter Recall Step")
-    st.write("화면에 흘러갔던 알파벳들을 **나열되었던 순서대로 선택하세요.**")
+    st.title("⌨️ 자음 회상 단계")
+    st.write("화면에 제시되었던 알파벳 자음들을 **순서대로** 선택하십시오.")
     st.warning(f"참여자 입력 궤적: {' ➔ '.join(st.session_state.user_recalled_letters)}")
     
     pad_cols = st.columns(4)
@@ -211,6 +213,7 @@ elif st.session_state.page == "rspan_recall":
             st.session_state.user_recalled_letters = []
             st.rerun()
     with c_sub:
+        # 이 부분의 모든 잠재적 use_width 오타를 완전 교정했습니다.
         if st.button("최종 과제 채점 및 제출", use_container_width=True, type="primary"):
             correct = st.session_state.selected_letters
             user = st.session_state.user_recalled_letters
@@ -228,7 +231,7 @@ elif st.session_state.page == "rspan_recall":
             st.rerun()
 
 # -------------------------------------------------------------------------
-# 3. 사후 설문 조사 단계
+# [4] 사후 집중도 주관 설문조사 페이지
 # -------------------------------------------------------------------------
 elif st.session_state.page == "survey_post":
     st.title("📝 사후 평가 문항")
@@ -270,7 +273,7 @@ elif st.session_state.page == "survey_post":
                 st.code(str(st.session_state.survey_data))
 
 # -------------------------------------------------------------------------
-# 4. 완료 페이지
+# [5] 최종 마감 완료 페이지
 # -------------------------------------------------------------------------
 elif st.session_state.page == "complete":
     st.title("🎉 실험 제출 완료")
