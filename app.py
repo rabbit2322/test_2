@@ -5,10 +5,12 @@ import math
 import base64
 import gspread
 import hashlib
+from datetime import time as dt_time  # 수면 시간 설정을 위한 안전한 임포트
 
-# [SYSTEM_BUILD_TRIGGER]: 캐시 초기화를 위한 고유 버전 태그 v1.0.3
+# 페이지 설정
 st.set_page_config(page_title="RSPAN 작업기억 테스트", layout="centered")
 
+# 실험용 RSPAN 문장 데이터 풀
 RSPAN_RAW_SENTENCES = [
     {"template": "그 작가는 글을 다 쓸 때까지 짧고 빠른 스퍼트로 자신의 {책|악어}을 집필했다."},
     {"template": "경찰관은 불법 유턴을 한 운전자에게 다가가 {면허증|시계탑}과 등록증을 요구했다."},
@@ -24,11 +26,13 @@ RSPAN_RAW_SENTENCES = [
 
 LETTERS_POOL = ["F", "H", "J", "K", "L", "N", "P", "Q", "R", "S", "T", "Y"]
 
+# 세션 상태(State) 초기화
 if "page" not in st.session_state:
     st.session_state.page = "survey_pre"
 if "survey_data" not in st.session_state:
     st.session_state.survey_data = {}
 
+# 순수 메트로놈 오디오 생성 함수 (WAV 바이너리)
 def generate_pure_metronome(bpm, duration_seconds=20):
     sample_rate = 22050
     num_channels = 1
@@ -80,7 +84,10 @@ if st.session_state.page == "survey_pre":
     name = st.text_input("참여자 이름 / 고유 식별 ID")
     age = st.number_input("나이 (만 나이 기준)", min_value=19, max_value=29, value=23)
     gender = st.selectbox("성별", ["여성", "남성"])
-    sleep_time = st.time_input("어제 수면 시간 (취침 시각)", value=time.fromisoformat("23:00:00"))
+    
+    # 수정 완료: dt_time 객체를 직접 전달하여 안전하게 초기값 설정
+    sleep_time = st.time_input("어제 수면 시간 (취침 시각)", value=dt_time(23, 0))
+    
     fatigue = st.slider("현재 본인이 느끼는 피로도는 어느 정도입니까? (1: 매우 개운함 ~ 5: 매우 피로함)", 1, 5, 3)
     noise_sensitivity = st.slider("평소 일상생활 소음에 얼마나 민감하십니까? (1: 매우 둔감함 ~ 5: 매우 민감함)", 1, 5, 3)
     sound_preference = st.radio("평소 어떤 음향 환경을 선호하십니까?", 
@@ -88,6 +95,7 @@ if st.session_state.page == "survey_pre":
     
     if st.button("실험 환경 확인 및 테스트 시작", use_container_width=True):
         if name:
+            # 해시 기반 실험 조건 무작위 배정
             hash_val = int(hashlib.md5(name.encode('utf-8')).hexdigest(), 16)
             treatments = ["silent", "60bpm", "130bpm"]
             assigned_treatment = treatments[hash_val % 3]
@@ -99,6 +107,7 @@ if st.session_state.page == "survey_pre":
                 "treatment": assigned_treatment
             })
             
+            # 문장 셔플 및 정/오답 셋팅
             shuffled_pool = random.sample(RSPAN_RAW_SENTENCES, len(RSPAN_RAW_SENTENCES))
             processed_sentences = []
             
@@ -137,6 +146,7 @@ elif st.session_state.page == "rspan_test":
     treatment = st.session_state.survey_data["treatment"]
     st.title(f"🕹️ RSPAN 인지 테스트 진행 중 ({treatment})")
     
+    # 소음 자극 자동 재생 처리
     if treatment != "silent":
         bpm_val = 60 if treatment == "60bpm" else 130
         audio_bytes = generate_pure_metronome(bpm_val, duration_seconds=15)
@@ -263,8 +273,8 @@ elif st.session_state.page == "survey_post":
                 st.session_state.page = "complete"
                 st.rerun()
             except Exception as e:
-                st.error(f"시트 바인딩 중 누락 이슈 발생: {e}")
-                st.info("임시 확인용 로컬 세션 데이터 캐시 스냅샷:")
+                st.error(f"시트 바인딩 중 오류 발생: {e}")
+                st.info("임시 확인용 데이터 로그:")
                 st.code(str(st.session_state.survey_data))
 
 # -------------------------------------------------------------------------
