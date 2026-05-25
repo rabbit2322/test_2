@@ -1,8 +1,7 @@
 import streamlit as st
-from streamlit_gsheets import GSheetsConnection
 import time
 import pandas as pd
-import random  # 코드 최상단에 이 줄이 없다면 추가해주세요!
+import random
 import gspread
 
 # 페이지 설정
