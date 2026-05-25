@@ -6,12 +6,9 @@ import base64
 import gspread
 import hashlib
 
-# 페이지 설정
+# 1. 페이지 설정 및 초기화
 st.set_page_config(page_title="RSPAN 작업기억 테스트", layout="centered")
 
-# -------------------------------------------------------------------------
-# [요구사항 2] RSPAN 표준 문장 데이터 풀 (총 10개 문장 고정 제공)
-# -------------------------------------------------------------------------
 RSPAN_RAW_SENTENCES = [
     {"template": "그 작가는 글을 다 쓸 때까지 짧고 빠른 스퍼트로 자신의 {책|악어}을 집필했다."},
     {"template": "경찰관은 불법 유턴을 한 운전자에게 다가가 {면허증|시계탑}과 등록증을 요구했다."},
@@ -27,13 +24,12 @@ RSPAN_RAW_SENTENCES = [
 
 LETTERS_POOL = ["F", "H", "J", "K", "L", "N", "P", "Q", "R", "S", "T", "Y"]
 
-# 세션 상태(State) 초기화
 if "page" not in st.session_state:
     st.session_state.page = "survey_pre"
 if "survey_data" not in st.session_state:
     st.session_state.survey_data = {}
 
-# 📢 [순수 파이썬 오디오] 외부 패키지(scipy 등) 없이 메트로놈 원음을 만드는 함수
+# 외부 패키지(scipy) 없이 WAV 메트로놈 데이터를 실시간 바이너리로 생성하는 함수
 def generate_pure_metronome(bpm, duration_seconds=20):
     sample_rate = 22050
     num_channels = 1
@@ -76,40 +72,36 @@ def generate_pure_metronome(bpm, duration_seconds=20):
     return bytes(header + data_bytes)
 
 # -------------------------------------------------------------------------
-# [요구사항 1] 사전 조사 페이지
+# 1. 사전 조사 단계
 # -------------------------------------------------------------------------
 if st.session_state.page == "survey_pre":
     st.title("📋 실험 전 사전 설문조사")
     st.write("본 연구 데이터 수집을 위해 아래 문항에 응답해 주세요.")
     
-    name = st.text_input("참여자 이름 / ID")
+    name = st.text_input("참여자 이름 / 고유 식별 ID")
     
-    # 1. 나이 입력 제한 (만 19세 ~ 29세만 가능하도록 딱 제약)
-    age = st.number_input("나이 (만 나이 입력)", min_value=19, max_value=29, value=22, 
-                          help="본 실험은 만 19세부터 29세까지만 참여가 가능합니다.")
+    # [제약] 만 19세에서 29세 까지만 입력 가능하게 범위 픽스
+    age = st.number_input("나이 (만 나이 기준)", min_value=19, max_value=29, value=23, 
+                          help="본 실험은 만 19세부터 29세 대상 연구입니다.")
     
-    # 2. 성별 (선택안함 없이 남성/여성만 제공)
-    gender = st.selectbox("성별", ["남성", "여성"])
+    # [제약] 여성과 남성만 선택가능 (선택 안함 없음)
+    gender = st.selectbox("성별", ["여성", "남성"])
     
-    # 3. 수면 시간 입력 (00시 00분 타임 셀렉터 포맷)
+    # [제약] 수면 시간 00시 00분 타임 셀렉터 포맷
     sleep_time = st.time_input("어제 수면 시간 (취침 시각)", value=time.fromisoformat("23:00:00"))
     
-    # 4. 현재 피로도 척도 (1~5)
-    fatigue = st.slider("현재 본인이 느끼는 피로도는 어느 정도입니까? (1: 전혀 안 피곤함 ~ 5: 매우 피로함)", 1, 5, 3)
+    # [제약] 현재 피로도 척도 (1~5)
+    fatigue = st.slider("현재 본인이 느끼는 피로도는 어느 정도입니까? (1: 매우 개운함 ~ 5: 매우 피로함)", 1, 5, 3)
     
-    # 5. 평소 소음 민감도 (1~5)
-    noise_sensitivity = st.slider("평소 일상생활 소음에 얼마나 민감하십니까? (1: 전혀 민감하지 않음 ~ 5: 매우 민감함)", 1, 5, 3)
+    # [제약] 평소 소음 민감도 (1~5)
+    noise_sensitivity = st.slider("평소 일상생활 소음에 얼마나 민감하십니까? (1: 매우 둔감함 ~ 5: 매우 민감함)", 1, 5, 3)
     
-    # 6. 평소 선호하는 음향 환경 선호도
-    sound_preference = st.radio("평소 공부나 작업 시 어떤 음향 환경을 선호하십니까?", 
+    sound_preference = st.radio("평소 어떤 음향 환경을 선호하십니까?", 
                                 ["완전한 무음 상태", "적당한 백색소음(카페, 자연음)", "잔잔한 음악이나 가요", "일정한 박자의 비트나 메트로놈"])
     
     if st.button("실험 환경 확인 및 테스트 시작", use_container_width=True):
         if name:
-            # -------------------------------------------------------------------------
-            # [요구사항 2] 처치 조건 사전 배정 알고리즘
-            # -------------------------------------------------------------------------
-            # ID 문자열을 해싱하여 무음, 60bpm, 130bpm 중 하나로 고정 고유 매칭 (엑셀 선입력 불필요)
+            # 피험자 고유 ID 기반 해시 처리로 엑셀 수동 배정 없이 무음/60/130 분배 균등 고정
             hash_val = int(hashlib.md5(name.encode('utf-8')).hexdigest(), 16)
             treatments = ["silent", "60bpm", "130bpm"]
             assigned_treatment = treatments[hash_val % 3]
@@ -121,27 +113,23 @@ if st.session_state.page == "survey_pre":
                 "treatment": assigned_treatment
             })
             
-            # 10개 문장을 무작위 셔플링하여 세팅 준비
+            # 문장 조립 파싱
             shuffled_pool = random.sample(RSPAN_RAW_SENTENCES, len(RSPAN_RAW_SENTENCES))
             processed_sentences = []
             
             for item in shuffled_pool:
                 template = item["template"]
-                p1 = template.find("{")
-                p2 = template.find("|")
-                p3 = template.find("}")
-                
+                p1, p2, p3 = template.find("{"), template.find("|"), template.find("}")
                 word_true = template[p1+1:p2]
                 word_false = template[p2+1:p3]
                 
-                # 50% 확률로 맞는 문장 또는 틀린 문장을 동적으로 조립하여 노출
                 is_correct_type = random.choice([True, False])
                 chosen_word = word_true if is_correct_type else word_false
                 final_text = template[:p1] + chosen_word + template[p3+1:]
                 
                 processed_sentences.append({"text": final_text, "correct": is_correct_type})
                 
-            st.session_state.set_size = 10  # 총 10문장 고정
+            st.session_state.set_size = 10
             st.session_state.current_step = 0
             st.session_state.sub_stage = "sentence"
             st.session_state.selected_sentences = processed_sentences
@@ -155,16 +143,15 @@ if st.session_state.page == "survey_pre":
             st.session_state.page = "rspan_test"
             st.rerun()
         else:
-            st.error("참여자 이름 또는 ID를 기입해주셔야 실험 배정이 시작됩니다.")
+            st.error("참여자 이름을 정확하게 기입해주셔야 배정이 완료됩니다.")
 
 # -------------------------------------------------------------------------
-# [요구사항 2] RSPAN 테스트 본 무대 루프
+# 2. 본 테스트 단계 (RSPAN 10문항)
 # -------------------------------------------------------------------------
 elif st.session_state.page == "rspan_test":
     treatment = st.session_state.survey_data["treatment"]
-    st.title(f"🕹️ RSPAN 테스트 진행 중 ({treatment})")
+    st.title(f"🕹️ RSPAN 인지 테스트 진행 중 ({treatment})")
     
-    # 안정적인 오디오 무한 루프 스트리밍
     if treatment != "silent":
         bpm_val = 60 if treatment == "60bpm" else 130
         audio_bytes = generate_pure_metronome(bpm_val, duration_seconds=15)
@@ -174,18 +161,18 @@ elif st.session_state.page == "rspan_test":
     idx = st.session_state.current_step
     
     if st.session_state.sub_stage == "sentence":
-        st.subheader(f"📊 문장 진위 판별 (단계: {idx + 1} / {st.session_state.set_size})")
+        st.subheader(f"📊 문장 판단 (진행도: {idx + 1} / {st.session_state.set_size})")
         current_sentence = st.session_state.selected_sentences[idx]["text"]
         
         st.info(f"**[제시 문장]** {current_sentence}")
-        st.write("위 문장은 문맥상 논리적 구조가 올바른 문장입니까?")
+        st.write("위 문장은 문맥 흐름상 올바른 문장입니까?")
         
         if st.session_state.sentence_start_time == 0.0:
             st.session_state.sentence_start_time = time.time()
             
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("⭕ TRUE (올바른 문장)", use_container_width=True, key=f"t_btn_{idx}"):
+            if st.button("⭕ TRUE (맞는 문장)", use_container_width=True, key=f"t_btn_{idx}"):
                 st.session_state.total_sentence_rt += (time.time() - st.session_state.sentence_start_time)
                 st.session_state.user_sentence_answers.append(st.session_state.selected_sentences[idx]["correct"] == True)
                 st.session_state.sentence_start_time = 0.0
@@ -199,13 +186,13 @@ elif st.session_state.page == "rspan_test":
                 st.session_state.sub_stage = "letter"
                 st.rerun()
 
-    # [요구사항 2] 글자는 정확히 0.5초 동안만 화면에 노출 후 자동 리런
+    # [요구사항 2] 단어(글자) 노출 타임아웃 정확히 0.5초 고정 후 리런
     elif st.session_state.sub_stage == "letter":
-        st.subheader("💡 나타난 글자의 알파벳 자음을 암기하세요")
+        st.subheader("💡 나타난 글자의 알파벳 자음을 기억하세요")
         tgt = st.session_state.selected_letters[idx]
         
-        st.markdown(f"<h1 style='text-align: center; font-size: 120px; color: #FF4B4B; font-weight: bold;'>{tgt}</h1>", unsafe_allow_html=True)
-        time.sleep(0.5)  # 단어 노출 정확히 0.5초 유지
+        st.markdown(f"<h1 style='text-align: center; font-size: 130px; color: #FF4B4B; font-weight: bold;'>{tgt}</h1>", unsafe_allow_html=True)
+        time.sleep(0.5)
         
         if idx + 1 < st.session_state.set_size:
             st.session_state.current_step += 1
@@ -215,12 +202,12 @@ elif st.session_state.page == "rspan_test":
         st.rerun()
 
 # -------------------------------------------------------------------------
-# 자음 복기 입력 매트릭스 패드 단계
+# 자음 소환 패드 키보드 매트릭스 단계
 # -------------------------------------------------------------------------
 elif st.session_state.page == "rspan_recall":
     st.title("⌨️ Letter Recall Step")
-    st.write("방금 전 화면에 스쳐 지나갔던 자음들을 **나열된 순서대로 정확하게 복기하세요.**")
-    st.warning(f"참여자 기입 순서 트랙: {' ➔ '.join(st.session_state.user_recalled_letters)}")
+    st.write("화면에 흘러갔던 알파벳들을 **나열되었던 순서대로 선택하세요.**")
+    st.warning(f"참여자 입력 궤적: {' ➔ '.join(st.session_state.user_recalled_letters)}")
     
     pad_cols = st.columns(4)
     for i, letter in enumerate(LETTERS_POOL):
@@ -232,11 +219,11 @@ elif st.session_state.page == "rspan_recall":
     st.write("---")
     c_clear, c_sub = st.columns(2)
     with c_clear:
-        if st.button("🗑️ 선택 히스토리 초기화", use_container_width=True):
+        if st.button("🗑️ 선택 내역 전체 초기화", use_container_width=True):
             st.session_state.user_recalled_letters = []
             st.rerun()
     with c_sub:
-        if st.button("최종 과제 채점 및 완료하기", use_container_width=True, type="primary"):
+        if st.button("최종 과제 채점 및 제출", use_container_width=True, type="primary"):
             correct = st.session_state.selected_letters
             user = st.session_state.user_recalled_letters
             
@@ -253,18 +240,19 @@ elif st.session_state.page == "rspan_recall":
             st.rerun()
 
 # -------------------------------------------------------------------------
-# [요구사항 3] 사후 설문 조사 (집중도 자가평가 1~5 고정)
+# 3. 사후 설문 조사 단계
 # -------------------------------------------------------------------------
 elif st.session_state.page == "survey_post":
     st.title("📝 사후 평가 문항")
     
+    # 집중도 자가평가 (1~5 척도 구성)
     satisfaction = st.slider("방금 진행한 인지 과제 중 자신의 집중도 자가평가 수치를 선택해 주세요. (1: 매우 산만함 ~ 5: 완벽히 집중함)", 1, 5, 3)
-    feedback = st.text_area("그 외 환경 자극 조건(메트로놈 속도 등)에 대해 느껴진 주관적 반응 기술")
+    feedback = st.text_area("그 외 소음 조건 환경에서 느껴진 주관적 반응 기술")
     
-    if st.button("실험 최종 보고서 데이터 서버 전송", use_container_width=True, type="primary"):
+    if st.button("실험 데이터 전송 및 최종 마감", use_container_width=True, type="primary"):
         st.session_state.survey_data.update({"satisfaction": satisfaction, "feedback": feedback})
         
-        with st.spinner("구글 스프레드시트 API 엔진에 연산 데이터를 백업 중입니다..."):
+        with st.spinner("클라우드 데이터베이스 전송 트래픽 처리 중..."):
             try:
                 creds = st.secrets["gspread_credentials"]
                 sheet_url = st.secrets["connections"]["gsheets"]["spreadsheet"]
@@ -290,12 +278,15 @@ elif st.session_state.page == "survey_post":
                 st.session_state.page = "complete"
                 st.rerun()
             except Exception as e:
-                st.error(f"시트 전송 누락 오류가 감지되었습니다: {e}")
-                st.info("임시 확인용 로컬 텍스트 백업 파일 코드:")
+                st.error(f"시트 바인딩 중 누락 이슈 발생: {e}")
+                st.info("임시 확인용 로컬 세션 데이터 캐시 스냅샷:")
                 st.code(str(st.session_state.survey_data))
 
+# -------------------------------------------------------------------------
+# 4. 완료 페이지
+# -------------------------------------------------------------------------
 elif st.session_state.page == "complete":
-    st.title("🎉 실험이 정상적으로 완수되었습니다.")
-    st.success("인지 과학 실험 측정치가 클라우드 DB에 무사히 보관되었습니다. 협조에 대단히 감사드립니다.")
+    st.title("🎉 실험 제출 완료")
+    st.success("모든 테스트와 설문이 완료되었습니다. 참여해 주셔서 대단히 감사합니다.")
     st.balloons()
     st.json(st.session_state.survey_data)
