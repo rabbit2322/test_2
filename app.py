@@ -8,6 +8,23 @@ import gspread
 import hashlib
 import pandas as pd
 import numpy as np
+from datetime import datetime
+
+# --- [1] 구글 시트 연결 설정 ---
+@st.cache_resource 
+def get_google_sheet():
+    creds_dict = st.secrets["gspread_credentials"]
+    gc = gspread.service_account_from_dict(creds_dict)
+    sh = gc.open("music_experiment_data").sheet1
+    return sh
+
+# 데이터가 필요할 때 호출
+sheet = get_google_sheet()
+data = sheet.get_all_records()
+
+
+
+
 
 # 페이지 기본 설정
 st.set_page_config(page_title="RSPAN 작업기억 테스트", layout="centered")
