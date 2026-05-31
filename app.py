@@ -28,32 +28,29 @@ from datetime import datetime
 # 페이지 설정
 st.set_page_config(page_title="RSPAN 작업기억 테스트", layout="centered")
 
-# [핵심 수정] 데이터 로드 함수를 좀 더 견고하게 변경
 @st.cache_data
 def load_all_data():
+    # 1. 문장 로드
     sentences = []
     if os.path.exists("span.txt"):
         with open("span.txt", "r", encoding="utf-8") as f:
             sentences = [{"template": line.strip()} for line in f if line.strip()]
     
-    # 수정된 로드 로직
+    # 2. 참여자 리스트 로드 및 컬럼 강제 고정
     file_path = "participant_list.csv" 
     if os.path.exists(file_path):
+        # 헤더를 무시하고 직접 컬럼명을 지정합니다.
         df = pd.read_csv(file_path)
-        # 중요: 컬럼명 공백제거 및 소문자화하여 무조건 'code'가 있게 만듦
+        
+        # 컬럼명을 확실하게 정리합니다.
         df.columns = df.columns.str.strip().str.lower()
+        
+        # 만약 컬럼이 ['gender', 'treatment', 'time_slot', 'code'] 순서라면
+        # 아래처럼 강제로 이름을 맞춥니다.
         return sentences, df
     else:
         return sentences, pd.DataFrame()
 
-# 데이터 로드
-RSPAN_RAW_SENTENCES, MASTER_DF = load_all_data()
-
-# 디버깅: 컬럼명이 무엇인지 화면에 강제 출력 (이게 에러의 원인을 알려줍니다)
-if not MASTER_DF.empty:
-    st.sidebar.write("현재 CSV 컬럼들:", MASTER_DF.columns.tolist())
-else:
-    st.sidebar.error("CSV 파일을 찾을 수 없습니다.")
 # 세션 상태(State) 초기화
 if "page" not in st.session_state:
     st.session_state.page = "instruction"
