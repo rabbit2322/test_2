@@ -58,10 +58,6 @@ if "block_results" not in st.session_state:
 if "user_info" not in st.session_state:
     st.session_state.user_info = None
     
-# 코드 상단 세션 상태 초기화 부분 바로 아래에 추가
-if st.session_state.page != "instruction":
-    st.sidebar.warning("⚠️ 주의: 새로고침을 하면 실험 데이터가 초기화됩니다.")
-
 # 순수 메트로놈 오디오 생성 함수 (WAV 바이너리)
 def generate_pure_metronome(bpm, duration_seconds=30):
     sample_rate = 22050
@@ -169,7 +165,7 @@ if st.session_state.page == "instruction":
     
     st.markdown("""
     ### 💡 실험 진행 방식
-    본 실험은 총 **3개의 단계(Block)**로 구성되어 있으며, 갈수록 기억해야 하는 항목이 많아집니다.
+    본 실험은 총 **3개의 단계(Block)** 로 구성되어 있으며, 갈수록 기억해야 하는 항목이 많아집니다.
     * **1단계 (Block 1):** 총 3개의 문장 판단 + 3개의 글자 기억
     * **2단계 (Block 2):** 총 5개의 문장 판단 + 5개의 글자 기억
     * **3단계 (Block 3):** 총 7개의 문장 판단 + 7개의 글자 기억
