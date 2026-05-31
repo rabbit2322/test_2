@@ -28,28 +28,29 @@ from datetime import datetime
 # 페이지 설정
 st.set_page_config(page_title="RSPAN 작업기억 테스트", layout="centered")
 
+# 파일 로드 시점에 문제가 생기지 않도록 방어 코드 추가
 @st.cache_data
 def load_all_data():
-    # 1. 문장 로드
     sentences = []
     if os.path.exists("span.txt"):
         with open("span.txt", "r", encoding="utf-8") as f:
             sentences = [{"template": line.strip()} for line in f if line.strip()]
     
-    # 2. 참여자 리스트 로드 및 컬럼 강제 고정
-    file_path = "participant_list.csv" 
+    file_path = "participant_list.csv"
     if os.path.exists(file_path):
-        # 헤더를 무시하고 직접 컬럼명을 지정합니다.
-        df = pd.read_csv(file_path)
-        
-        # 컬럼명을 확실하게 정리합니다.
-        df.columns = df.columns.str.strip().str.lower()
-        
-        # 만약 컬럼이 ['gender', 'treatment', 'time_slot', 'code'] 순서라면
-        # 아래처럼 강제로 이름을 맞춥니다.
-        return sentences, df
+        try:
+            df = pd.read_csv(file_path)
+            # 공백 제거 및 소문자화
+            df.columns = df.columns.str.strip().str.lower()
+            return sentences, df
+        except Exception:
+            return sentences, pd.DataFrame(columns=['code', 'treatment', 'time_slot'])
     else:
-        return sentences, pd.DataFrame()
+        # 파일이 없을 경우 빈 DF 반환
+        return sentences, pd.DataFrame(columns=['code', 'treatment', 'time_slot'])
+
+# 함수 호출 (이 변수들이 정의되어야 아래 코드들이 작동합니다)
+RSPAN_RAW_SENTENCES, MASTER_DF = load_all_data()
 
 # 세션 상태(State) 초기화
 if "page" not in st.session_state:
@@ -151,6 +152,9 @@ def init_block_task():
 # -------------------------------------------------------------------------
 # [0] 실험 사전 안내 페이지
 # -------------------------------------------------------------------------
+# -------------------------------------------------------------------------
+# [0] 실험 사전 안내 페이지
+# -------------------------------------------------------------------------
 if st.session_state.page == "instruction":
     st.title("🔬 Reading Span Task (RSPAN) 실험 안내")
     st.write("본 실험은 언어 처리 능력과 작업 기억 용량(Working Memory Capacity)을 측정하기 위한 검사입니다.")
@@ -168,34 +172,41 @@ if st.session_state.page == "instruction":
     3. 지정된 세트가 끝나면 키패드가 나타납니다. 방금 보았던 알파벳들을 **나타났던 순서 그대로** 마우스로 클릭하여 입력해 주세요.
     """)
     st.info("⚠️ 주의: 문장 판단을 너무 오래 지연하거나 알파벳을 임의로 적으면 정상적인 측정이 되지 않습니다.")
+
+    st.write("---")
     
-    if st.button("안내를 확인했으며, 사전 설문 시작하기", use_container_width=True, type="primary"):
-        st.session_state.page = "survey_pre"
-        st.rerun()
+    # [수정] 입력창과 버튼을 하나로 통합
+    user_code = st.text_input("참여자 코드를 입력하세요", placeholder="코드를 입력하고 아래 버튼을 누르세요")
     
-    
-    
-    # 1. 코드 입력 및 시간대/배정 확인
-    user_code = st.text_input("참여자 코드를 입력하세요")
-    
-    if st.button("안내 확인 및 시작", type="primary"):
-        user_row = MASTER_DF[MASTER_DF['code'] == user_code]
-        if not user_row.empty:
-            p_data = user_row.iloc[0]
-            # 3. 시간대 제한 체크
-            now_hour = datetime.now().hour
-            current_slot = "AM" if now_hour < 12 else "PM"
-            if p_data['time_slot'] != current_slot:
-                st.error(f"지금은 {current_slot}입니다. 배정된 시간대인 {p_data['time_slot']}에 접속하세요.")
-            else:
-                st.session_state.survey_data.update(p_data.to_dict())
-                st.session_state.page = "survey_pre"
-                st.rerun()
+    if st.button("안내 확인 및 실험 시작하기", use_container_width=True, type="primary"):
+        if not user_code:
+            st.warning("참여자 코드를 입력해 주세요.")
         else:
-            st.error("등록되지 않은 참여자 코드입니다.")
+            # MASTER_DF 검색 (안전 장치 포함)
+            # .astype(str)로 변환하여 타입 불일치 방지
+            search_result = MASTER_DF[MASTER_DF['code'].astype(str).str.strip() == str(user_code).strip()]
+            
+            if not search_result.empty:
+                p_data = search_result.iloc[0]
+                
+                # 시간대 제한 체크
+                now_hour = datetime.now().hour
+                current_slot = "AM" if now_hour < 12 else "PM"
+                
+                # 데이터의 time_slot과 현재 시간 비교
+                if str(p_data['time_slot']).strip().upper() != current_slot:
+                    st.error(f"지금은 {current_slot}입니다. 배정된 시간대인 {p_data['time_slot']}에 접속하세요.")
+                else:
+                    st.session_state.survey_data.update(p_data.to_dict())
+                    st.session_state.page = "survey_pre"
+                    st.rerun()
+            else:
+                st.error("등록되지 않은 참여자 코드입니다.")
     
+    # 사전 테스트 버튼은 별도로 배치
     if st.button("🔊 소리 사전 테스트"):
         st.audio(generate_pure_metronome(60, 3), format="audio/wav")
+    
 
 # -------------------------------------------------------------------------
 # [1] 1. 사전 설문조사 (Pre-test Questionnaire)
