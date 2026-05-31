@@ -468,20 +468,24 @@ elif st.session_state.page == "survey_post":
         try:
             sheet = get_google_sheet()
             
-            # 시트에 기록할 행 데이터 구성
+        # 시트에 기록할 행 데이터 구성
             row = [
                 st.session_state.survey_data.get("code", ""),
                 st.session_state.survey_data.get("treatment", ""),
                 st.session_state.survey_data.get("age", ""),
-                st.session_state.survey_data.get("b1_score", ""),
-                st.session_state.survey_data.get("b1_accuracy", ""),
-                st.session_state.survey_data.get("b1_rt", ""),
-                st.session_state.survey_data.get("b2_score", ""),
-                st.session_state.survey_data.get("b2_accuracy", ""),
-                st.session_state.survey_data.get("b2_rt", ""),
-                st.session_state.survey_data.get("b3_score", ""),
-                st.session_state.survey_data.get("b3_accuracy", ""),
-                st.session_state.survey_data.get("b3_rt", ""),
+                st.session_state.survey_data.get("sleep_time", ""),
+                st.session_state.survey_data.get("fatigue", ""),
+                st.session_state.survey_data.get("noise_sensitivity", ""),
+                st.session_state.survey_data.get("sound_preference", ""),
+                st.session_state.block_results.get("b1_score", ""),
+                st.session_state.block_results.get("b1_accuracy", ""),
+                st.session_state.block_results.get("b1_rt", ""),
+                st.session_state.block_results.get("b2_score", ""),
+                st.session_state.block_results.get("b2_accuracy", ""),
+                st.session_state.block_results.get("b2_rt", ""),
+                st.session_state.block_results.get("b3_score", ""),
+                st.session_state.block_results.get("b3_accuracy", ""),
+                st.session_state.block_results.get("b3_rt", ""),
                 st.session_state.survey_data.get("satisfaction", ""),
                 st.session_state.survey_data.get("feedback", ""),
                 st.session_state.survey_data.get("phone_number", "")
