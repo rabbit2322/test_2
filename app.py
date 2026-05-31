@@ -217,22 +217,25 @@ if st.session_state.page == "instruction":
             st.warning("참여자 코드를 입력해 주세요.")
         else:
             # 데이터프레임의 'code' 열을 문자열로 통일 후 비교
-            search_result = MASTER_DF[MASTER_DF['code'].astype(str).str.strip() == str(user_code).strip()]
+            # 참여자 코드 검색 부분
+            search_result = MASTER_DF[MASTER_DF['code'] == str(user_code).strip()]
             
             if not search_result.empty:
                 p_data = search_result.iloc[0]
                 now_hour = datetime.now().hour
                 current_slot = "AM" if now_hour < 12 else "PM"
                 
-                if str(p_data['time_slot']).strip().upper() != current_slot:
-                    st.error(f"지금은 {current_slot}입니다. 배정된 시간대인 {p_data['time_slot']}에 접속하세요.")
+                # [강화된 비교] 공백 제거 및 대소문자 무시 비교
+                db_slot = str(p_data['time_slot']).strip().upper()
+                
+                if db_slot != current_slot:
+                    st.error(f"🚨 현재 시간은 {current_slot}입니다. 본인의 배정 시간대인 **{db_slot}**에 접속해 주세요.")
                 else:
                     st.session_state.survey_data.update(p_data.to_dict())
                     st.session_state.page = "survey_pre"
                     st.rerun()
             else:
                 st.error("등록되지 않은 참여자 코드입니다.")
-
 # -------------------------------------------------------------------------
 # [1] 1. 사전 설문조사 (Pre-test Questionnaire)
 # -------------------------------------------------------------------------
@@ -467,7 +470,13 @@ elif st.session_state.page == "survey_post":
         # 데이터 전송 시도
         try:
             sheet = get_google_sheet()
-            
+            # [중복 방지 로직] 기존 데이터 전체 가져와서 'code' 컬럼 확인
+            all_records = sheet.get_all_records()
+            current_code = str(st.session_state.survey_data.get("code", "")).strip()
+                
+            if any(str(r.get("code", "")).strip() == current_code for r in all_records):
+                st.error("🚨 이미 해당 코드로 제출된 데이터가 있습니다. 중복 제출은 불가능합니다.")
+                st.stop()
         # 시트에 기록할 행 데이터 구성
             row = [
                 st.session_state.survey_data.get("code", ""),
