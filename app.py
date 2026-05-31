@@ -196,10 +196,12 @@ if st.session_state.page == "instruction":
 
     st.write("---")
     
-    # 코드 입력 및 실험 시작
+# 코드 입력
     user_code = st.text_input("참여자 코드를 입력하세요", placeholder="코드를 입력하고 아래 버튼을 누르세요")
     
-      if not user_code:
+    # 버튼 클릭 시 실행되는 로직
+    if st.button("안내 확인 및 실험 시작하기", use_container_width=True, type="primary"):
+        if not user_code:
             st.warning("참여자 코드를 입력해 주세요.")
         else:
             # 데이터프레임의 'code' 열을 문자열로 통일 후 비교
@@ -218,7 +220,6 @@ if st.session_state.page == "instruction":
                     st.rerun()
             else:
                 st.error("등록되지 않은 참여자 코드입니다.")
-    
 
 # -------------------------------------------------------------------------
 # [1] 1. 사전 설문조사 (Pre-test Questionnaire)
