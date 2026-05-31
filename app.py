@@ -14,6 +14,21 @@ st.set_page_config(page_title="RSPAN 작업기억 테스트", layout="centered")
 # 전역 알파벳 자음 풀
 LETTERS_POOL = ["F", "H", "J", "K", "L", "N", "P", "Q", "R", "S", "T", "Y"]
 
+import streamlit as st
+import time
+import random
+import math
+import base64
+import os
+import gspread
+import hashlib
+import pandas as pd
+from datetime import datetime
+
+# 페이지 설정
+st.set_page_config(page_title="RSPAN 작업기억 테스트", layout="centered")
+
+# [핵심 수정] 데이터 로드 함수를 좀 더 견고하게 변경
 @st.cache_data
 def load_all_data():
     # 1. 문장 로드
@@ -22,17 +37,28 @@ def load_all_data():
         with open("span.txt", "r", encoding="utf-8") as f:
             sentences = [{"template": line.strip()} for line in f if line.strip()]
     
-    # 2. 참여자 리스트 로드 및 컬럼명 정리
+    # 2. 참여자 리스트 로드
     if os.path.exists("participant_list.csv"):
-        master_df = pd.read_csv("participant_list.csv")
-        # 컬럼명 앞뒤 공백 제거
-        master_df.columns = master_df.columns.str.strip()
-        # 소문자로 통일 (CSV에 Code라고 적혀 있어도 code로 접근 가능)
-        master_df.columns = master_df.columns.str.lower()
+        try:
+            df = pd.read_csv("participant_list.csv")
+            # 컬럼명 정리: 공백 제거, 소문자화
+            df.columns = df.columns.str.strip().str.lower()
+            return sentences, df
+        except Exception as e:
+            st.error(f"CSV 읽기 오류: {e}")
+            return sentences, pd.DataFrame()
     else:
-        master_df = pd.DataFrame()
-        
-    return sentences, master_df
+        return sentences, pd.DataFrame()
+
+# 데이터 로드 실행
+RSPAN_RAW_SENTENCES, MASTER_DF = load_all_data()
+
+# [디버깅 추가] 데이터가 정상인지 확인 (에러 발생 시 화면에 표시됨)
+if MASTER_DF.empty:
+    st.error("참여자 리스트(participant_list.csv)를 찾을 수 없거나 비어 있습니다.")
+elif 'code' not in MASTER_DF.columns:
+    st.error(f"CSV에 'code' 컬럼이 없습니다. 현재 컬럼: {list(MASTER_DF.columns)}")
+    st.stop()
 
 # 세션 상태(State) 초기화
 if "page" not in st.session_state:
