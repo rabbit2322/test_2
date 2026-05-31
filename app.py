@@ -107,6 +107,19 @@ def generate_pure_metronome(bpm, duration_seconds=30):
     
     return bytes(header + data_bytes)
 
+def get_metronome_sound():
+    # 샘플링 레이트
+    sample_rate = 44100
+    # 주파수 (440Hz: A4음)
+    frequency = 440
+    # 재생 시간 (0.5초)
+    duration = 0.5
+    
+    t = np.linspace(0, duration, int(sample_rate * duration), endpoint=False)
+    # 사인파 생성
+    wave = 0.5 * np.sin(2 * np.pi * frequency * t)
+    return wave
+
 # 블록별 세트 크기 정의
 def get_set_size():
     mapping = {1: 3, 2: 5, 3: 7}
@@ -179,10 +192,13 @@ if st.session_state.page == "instruction":
     st.write("---")
     
     # [추가] 소리 테스트 섹션
-    st.subheader("🔊 음량 확인 및 테스트")
+st.subheader("🔊 음량 확인 및 테스트")
+    
     if st.button("소리 테스트 재생"):
-        # 여기서 사용하시는 오디오 파일을 재생합니다
-        st.audio("test_sound.mp3") 
+        sound_data = get_metronome_sound()
+        # 데이터가 담긴 넘파이 배열을 직접 재생
+        st.audio(sound_data, sample_rate=44100)
+        
     st.write("위 버튼을 눌러 소리가 정상적으로 들리는지 확인하고, 기기의 볼륨을 조절해 주세요.")
 
     st.write("---")
