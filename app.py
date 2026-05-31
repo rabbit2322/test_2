@@ -184,7 +184,7 @@ if st.session_state.page == "instruction":
     
     ### 🕹️ 세부 수행 흐름
     1. 화면에 문장이 제시되면 문맥이 올바른지 **⭕(TRUE)** 또는 **❌(FALSE)** 버튼을 눌러 빠르게 판단합니다.
-    2. 문장 판단 직후 화면에 **알파벳 자음 한 글자**가 0.5초 동안 나타났다 사라집니다. 이 글자를 순서대로 머릿속에 기억하셔야 합니다.
+    2. 문장 판단 직후 화면에 **알파벳 자음 한 글자**가 1초 동안 나타났다 사라집니다. 이 글자를 순서대로 머릿속에 기억하셔야 합니다.
     3. 지정된 세트가 끝나면 키패드가 나타납니다. 방금 보았던 알파벳들을 **나타났던 순서 그대로** 마우스로 클릭하여 입력해 주세요.
     
     ### 🎧 사전 준비 사항
@@ -374,7 +374,7 @@ elif st.session_state.page == "rspan_test":
         
         placeholder = st.empty()
         placeholder.markdown(f"<h1 style='text-align: center; font-size: 140px; color: #FF4B4B; font-weight: bold;'>{tgt}</h1>", unsafe_allow_html=True)
-        time.sleep(0.5)
+        time.sleep(1)
         placeholder.empty()
         
         if idx + 1 < st.session_state.set_size:
