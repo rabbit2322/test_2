@@ -247,9 +247,10 @@ elif st.session_state.page == "survey_pre":
         ]
     )
     
-    if sound_pref_type == " 기타 (자유 기술)":
+    # [수정] 기타 선택 시 입력창만 표시
+    if sound_pref_type == "기타 (자유 기술)":
         sound_preference_detail = st.text_input("기타 (자유 기술) 내용을 적어주세요. (예: 잔잔한 클래식 음악 등)", placeholder="여기에 자유롭게 작성")
-        final_sound_preference = f"기타: {sound_preference_detail}" if sound_preference_detail else "기타(내용 미입력)"
+        final_sound_preference = f"기타: {sound_preference_detail}"
     else:
         final_sound_preference = sound_pref_type
     
