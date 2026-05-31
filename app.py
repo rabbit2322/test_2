@@ -199,26 +199,25 @@ if st.session_state.page == "instruction":
     # 코드 입력 및 실험 시작
     user_code = st.text_input("참여자 코드를 입력하세요", placeholder="코드를 입력하고 아래 버튼을 누르세요")
     
-if st.button("안내 확인 및 실험 시작하기", use_container_width=True, type="primary"):
-        if not user_code:
-            st.warning("참여자 코드를 입력해 주세요.")
-        else:
+if not user_code:
+    st.warning("참여자 코드를 입력해 주세요.")
+else:
             # 데이터프레임의 'code' 열을 문자열로 통일 후 비교
-            search_result = MASTER_DF[MASTER_DF['code'].astype(str).str.strip() == str(user_code).strip()]
+    search_result = MASTER_DF[MASTER_DF['code'].astype(str).str.strip() == str(user_code).strip()]
             
-            if not search_result.empty:
-                p_data = search_result.iloc[0]
-                now_hour = datetime.now().hour
-                current_slot = "AM" if now_hour < 12 else "PM"
+    if not search_result.empty:
+        p_data = search_result.iloc[0]
+        now_hour = datetime.now().hour
+        current_slot = "AM" if now_hour < 12 else "PM"
                 
-                if str(p_data['time_slot']).strip().upper() != current_slot:
-                    st.error(f"지금은 {current_slot}입니다. 배정된 시간대인 {p_data['time_slot']}에 접속하세요.")
-                else:
-                    st.session_state.survey_data.update(p_data.to_dict())
-                    st.session_state.page = "survey_pre"
-                    st.rerun()
-            else:
-                st.error("등록되지 않은 참여자 코드입니다.")
+        if str(p_data['time_slot']).strip().upper() != current_slot:
+            st.error(f"지금은 {current_slot}입니다. 배정된 시간대인 {p_data['time_slot']}에 접속하세요.")
+        else:
+            st.session_state.survey_data.update(p_data.to_dict())
+            st.session_state.page = "survey_pre"
+            st.rerun()
+    else:
+        st.error("등록되지 않은 참여자 코드입니다.")
     
 
 # -------------------------------------------------------------------------
