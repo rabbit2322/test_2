@@ -152,9 +152,7 @@ def init_block_task():
 # -------------------------------------------------------------------------
 # [0] 실험 사전 안내 페이지
 # -------------------------------------------------------------------------
-# -------------------------------------------------------------------------
-# [0] 실험 사전 안내 페이지
-# -------------------------------------------------------------------------
+
 if st.session_state.page == "instruction":
     st.title("🔬 Reading Span Task (RSPAN) 실험 안내")
     st.write("본 실험은 언어 처리 능력과 작업 기억 용량(Working Memory Capacity)을 측정하기 위한 검사입니다.")
@@ -170,20 +168,32 @@ if st.session_state.page == "instruction":
     1. 화면에 문장이 제시되면 문맥이 올바른지 **⭕(TRUE)** 또는 **❌(FALSE)** 버튼을 눌러 빠르게 판단합니다.
     2. 문장 판단 직후 화면에 **알파벳 자음 한 글자**가 0.5초 동안 나타났다 사라집니다. 이 글자를 순서대로 머릿속에 기억하셔야 합니다.
     3. 지정된 세트가 끝나면 키패드가 나타납니다. 방금 보았던 알파벳들을 **나타났던 순서 그대로** 마우스로 클릭하여 입력해 주세요.
+    
+    ### 🎧 사전 준비 사항
+    * 테스트 진행 시간: 00분 ~ 00분
+    * **이어폰/헤드폰 착용:** 실험 중 제시되는 소리를 명확히 듣기 위해 반드시 이어폰이나 헤드폰을 착용해 주세요.
+    * **음량 조절:** 아래 '소리 테스트' 버튼을 눌러 소리를 확인하고, 본인이 편안하게 들을 수 있는 적절한 크기로 조절해 주세요.
     """)
     st.info("⚠️ 주의: 문장 판단을 너무 오래 지연하거나 알파벳을 임의로 적으면 정상적인 측정이 되지 않습니다.")
 
     st.write("---")
     
-    # [수정] 입력창과 버튼을 하나로 통합
+    # [추가] 소리 테스트 섹션
+    st.subheader("🔊 음량 확인 및 테스트")
+    if st.button("소리 테스트 재생"):
+        # 여기서 사용하시는 오디오 파일을 재생합니다
+        st.audio("test_sound.mp3") 
+    st.write("위 버튼을 눌러 소리가 정상적으로 들리는지 확인하고, 기기의 볼륨을 조절해 주세요.")
+
+    st.write("---")
+    
+    # 코드 입력 및 실험 시작
     user_code = st.text_input("참여자 코드를 입력하세요", placeholder="코드를 입력하고 아래 버튼을 누르세요")
     
     if st.button("안내 확인 및 실험 시작하기", use_container_width=True, type="primary"):
         if not user_code:
             st.warning("참여자 코드를 입력해 주세요.")
         else:
-            # MASTER_DF 검색 (안전 장치 포함)
-            # .astype(str)로 변환하여 타입 불일치 방지
             search_result = MASTER_DF[MASTER_DF['code'].astype(str).str.strip() == str(user_code).strip()]
             
             if not search_result.empty:
@@ -193,7 +203,6 @@ if st.session_state.page == "instruction":
                 now_hour = datetime.now().hour
                 current_slot = "AM" if now_hour < 12 else "PM"
                 
-                # 데이터의 time_slot과 현재 시간 비교
                 if str(p_data['time_slot']).strip().upper() != current_slot:
                     st.error(f"지금은 {current_slot}입니다. 배정된 시간대인 {p_data['time_slot']}에 접속하세요.")
                 else:
@@ -202,10 +211,6 @@ if st.session_state.page == "instruction":
                     st.rerun()
             else:
                 st.error("등록되지 않은 참여자 코드입니다.")
-    
-    # 사전 테스트 버튼은 별도로 배치
-    if st.button("🔊 소리 사전 테스트"):
-        st.audio(generate_pure_metronome(60, 3), format="audio/wav")
     
 
 # -------------------------------------------------------------------------
