@@ -23,8 +23,23 @@ sheet = get_google_sheet()
 data = sheet.get_all_records()
 
 
+# 데이터 로드 함수를 전역에서 안전하게 호출
+@st.cache_data
+def load_all_data():
+    sentences = []
+    if os.path.exists("span.txt"):
+        with open("span.txt", "r", encoding="utf-8") as f:
+            sentences = [{"template": line.strip()} for line in f if line.strip()]
+    
+    df = pd.DataFrame(columns=['code', 'treatment', 'time_slot']) # 기본값
+    if os.path.exists("participant_list.csv"):
+        df = pd.read_csv("participant_list.csv")
+        # 컬럼명 공백 제거 및 소문자화 (필수!)
+        df.columns = df.columns.str.strip().str.lower()
+    return sentences, df
 
-
+# 함수 호출하여 데이터 확보
+RSPAN_RAW_SENTENCES, MASTER_DF = load_all_data()
 
 # 페이지 기본 설정
 st.set_page_config(page_title="RSPAN 작업기억 테스트", layout="centered")
@@ -46,29 +61,6 @@ from datetime import datetime
 # 페이지 설정
 st.set_page_config(page_title="RSPAN 작업기억 테스트", layout="centered")
 
-# 파일 로드 시점에 문제가 생기지 않도록 방어 코드 추가
-@st.cache_data
-def load_all_data():
-    sentences = []
-    if os.path.exists("span.txt"):
-        with open("span.txt", "r", encoding="utf-8") as f:
-            sentences = [{"template": line.strip()} for line in f if line.strip()]
-    
-    file_path = "participant_list.csv"
-    if os.path.exists(file_path):
-        try:
-            df = pd.read_csv(file_path)
-            # 공백 제거 및 소문자화
-            df.columns = df.columns.str.strip().str.lower()
-            return sentences, df
-        except Exception:
-            return sentences, pd.DataFrame(columns=['code', 'treatment', 'time_slot'])
-    else:
-        # 파일이 없을 경우 빈 DF 반환
-        return sentences, pd.DataFrame(columns=['code', 'treatment', 'time_slot'])
-
-# 함수 호출 (이 변수들이 정의되어야 아래 코드들이 작동합니다)
-RSPAN_RAW_SENTENCES, MASTER_DF = load_all_data()
 
 # 세션 상태(State) 초기화
 if "page" not in st.session_state:
@@ -224,14 +216,17 @@ if st.session_state.page == "instruction":
     # 코드 입력 및 실험 시작
     user_code = st.text_input("참여자 코드를 입력하세요", placeholder="코드를 입력하고 아래 버튼을 누르세요")
     
-    if st.button("안내 확인 및 실험 시작하기", use_container_width=True, type="primary"):
-        if not user_code:
-            st.warning("참여자 코드를 입력해 주세요.")
-        else:
-            search_result = MASTER_DF[MASTER_DF['code'].astype(str).str.strip() == str(user_code).strip()]
-            
-            if not search_result.empty:
-                p_data = search_result.iloc[0]
+# [참여자 코드 확인 로직]
+if st.button("안내 확인 및 실험 시작하기", use_container_width=True, type="primary"):
+    if not user_code:
+        st.warning("참여자 코드를 입력해 주세요.")
+    else:
+        # 데이터프레임의 'code' 열을 문자열로 통일 후 비교
+        search_result = MASTER_DF[MASTER_DF['code'].astype(str).str.strip() == str(user_code).strip()]
+        
+        if not search_result.empty:
+            p_data = search_result.iloc[0]
+            # ... (나머지 로직)
                 
                 # 시간대 제한 체크
                 now_hour = datetime.now().hour
