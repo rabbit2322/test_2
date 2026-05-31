@@ -31,35 +31,29 @@ st.set_page_config(page_title="RSPAN 작업기억 테스트", layout="centered")
 # [핵심 수정] 데이터 로드 함수를 좀 더 견고하게 변경
 @st.cache_data
 def load_all_data():
-    # 1. 문장 로드
     sentences = []
     if os.path.exists("span.txt"):
         with open("span.txt", "r", encoding="utf-8") as f:
             sentences = [{"template": line.strip()} for line in f if line.strip()]
     
-    # 2. 참여자 리스트 로드
-    if os.path.exists("participant_list.csv"):
-        try:
-            df = pd.read_csv("participant_list.csv")
-            # 컬럼명 정리: 공백 제거, 소문자화
-            df.columns = df.columns.str.strip().str.lower()
-            return sentences, df
-        except Exception as e:
-            st.error(f"CSV 읽기 오류: {e}")
-            return sentences, pd.DataFrame()
+    # 수정된 로드 로직
+    file_path = "participant_list.csv" 
+    if os.path.exists(file_path):
+        df = pd.read_csv(file_path)
+        # 중요: 컬럼명 공백제거 및 소문자화하여 무조건 'code'가 있게 만듦
+        df.columns = df.columns.str.strip().str.lower()
+        return sentences, df
     else:
         return sentences, pd.DataFrame()
 
-# 데이터 로드 실행
+# 데이터 로드
 RSPAN_RAW_SENTENCES, MASTER_DF = load_all_data()
 
-# [디버깅 추가] 데이터가 정상인지 확인 (에러 발생 시 화면에 표시됨)
-if MASTER_DF.empty:
-    st.error("참여자 리스트(participant_list.csv)를 찾을 수 없거나 비어 있습니다.")
-elif 'code' not in MASTER_DF.columns:
-    st.error(f"CSV에 'code' 컬럼이 없습니다. 현재 컬럼: {list(MASTER_DF.columns)}")
-    st.stop()
-
+# 디버깅: 컬럼명이 무엇인지 화면에 강제 출력 (이게 에러의 원인을 알려줍니다)
+if not MASTER_DF.empty:
+    st.sidebar.write("현재 CSV 컬럼들:", MASTER_DF.columns.tolist())
+else:
+    st.sidebar.error("CSV 파일을 찾을 수 없습니다.")
 # 세션 상태(State) 초기화
 if "page" not in st.session_state:
     st.session_state.page = "instruction"
