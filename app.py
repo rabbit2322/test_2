@@ -217,25 +217,29 @@ if st.session_state.page == "instruction":
             st.warning("참여자 코드를 입력해 주세요.")
         else:
             # 데이터프레임의 'code' 열을 문자열로 통일 후 비교
-            # 참여자 코드 검색 부분
-            search_result = MASTER_DF[MASTER_DF['code'] == str(user_code).strip()]
+            search_result = MASTER_DF[MASTER_DF['code'].astype(str).str.strip() == str(user_code).strip()]
             
             if not search_result.empty:
                 p_data = search_result.iloc[0]
-                now_hour = datetime.now().hour
+                
+                # [수정] 한국 시간(KST, UTC+9) 적용
+                from datetime import datetime, timedelta, timezone
+                kst = timezone(timedelta(hours=9))
+                now_hour = datetime.now(kst).hour
                 current_slot = "AM" if now_hour < 12 else "PM"
                 
                 # [강화된 비교] 공백 제거 및 대소문자 무시 비교
                 db_slot = str(p_data['time_slot']).strip().upper()
                 
                 if db_slot != current_slot:
-                    st.error(f"🚨 현재 시간은 {current_slot}입니다. 본인의 배정 시간대인 **{db_slot}**에 접속해 주세요.")
+                    st.error(f"🚨 현재 한국 시간은 {current_slot}입니다. 본인의 배정 시간대인 **{db_slot}**에 접속해 주세요.")
                 else:
                     st.session_state.survey_data.update(p_data.to_dict())
                     st.session_state.page = "survey_pre"
                     st.rerun()
             else:
                 st.error("등록되지 않은 참여자 코드입니다.")
+
 # -------------------------------------------------------------------------
 # [1] 1. 사전 설문조사 (Pre-test Questionnaire)
 # -------------------------------------------------------------------------
