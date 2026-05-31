@@ -226,20 +226,19 @@ if st.button("안내 확인 및 실험 시작하기", use_container_width=True, 
         
         if not search_result.empty:
             p_data = search_result.iloc[0]
-            # ... (나머지 로직)
-                
-                # 시간대 제한 체크
-                now_hour = datetime.now().hour
-                current_slot = "AM" if now_hour < 12 else "PM"
-                
-                if str(p_data['time_slot']).strip().upper() != current_slot:
-                    st.error(f"지금은 {current_slot}입니다. 배정된 시간대인 {p_data['time_slot']}에 접속하세요.")
-                else:
-                    st.session_state.survey_data.update(p_data.to_dict())
-                    st.session_state.page = "survey_pre"
-                    st.rerun()
+            
+            # 시간대 제한 체크 (들여쓰기 수정 완료)
+            now_hour = datetime.now().hour
+            current_slot = "AM" if now_hour < 12 else "PM"
+            
+            if str(p_data['time_slot']).strip().upper() != current_slot:
+                st.error(f"지금은 {current_slot}입니다. 배정된 시간대인 {p_data['time_slot']}에 접속하세요.")
             else:
-                st.error("등록되지 않은 참여자 코드입니다.")
+                st.session_state.survey_data.update(p_data.to_dict())
+                st.session_state.page = "survey_pre"
+                st.rerun()
+        else:
+            st.error("등록되지 않은 참여자 코드입니다.")
     
 
 # -------------------------------------------------------------------------
