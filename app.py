@@ -9,21 +9,13 @@ import hashlib
 import pandas as pd
 import numpy as np
 from datetime import datetime
-
-# --- [1] 구글 시트 연결 설정 ---
-@st.cache_resource 
-def get_google_sheet():
-    creds_dict = st.secrets["gspread_credentials"]
-    gc = gspread.service_account_from_dict(creds_dict)
-    sh = gc.open("music_experiment_data").sheet1
-    return sh
-
-# 데이터가 필요할 때 호출
-sheet = get_google_sheet()
-data = sheet.get_all_records()
+import json 
 
 
-# 데이터 로드 함수를 전역에서 안전하게 호출
+# 페이지 기본 설정
+st.set_page_config(page_title="RSPAN 작업기억 테스트", layout="centered")
+
+# --- [데이터 로드 함수] ---
 @st.cache_data
 def load_all_data():
     sentences = []
@@ -31,37 +23,29 @@ def load_all_data():
         with open("span.txt", "r", encoding="utf-8") as f:
             sentences = [{"template": line.strip()} for line in f if line.strip()]
     
-    df = pd.DataFrame(columns=['code', 'treatment', 'time_slot']) # 기본값
+    df = pd.DataFrame(columns=['code', 'treatment', 'time_slot'])
     if os.path.exists("participant_list.csv"):
         df = pd.read_csv("participant_list.csv")
-        # 컬럼명 공백 제거 및 소문자화 (필수!)
         df.columns = df.columns.str.strip().str.lower()
     return sentences, df
 
-# 함수 호출하여 데이터 확보
+# --- [구글 시트 연결 함수] ---
+@st.cache_resource 
+def get_google_sheet():
+    # secrets.toml에서 정보를 가져옵니다. 
+    # (JSON 전체를 가져오는지, 개별 키를 가져오는지 확인 후 수정)
+    creds_dict = st.secrets["gspread_credentials"]
+    gc = gspread.service_account_from_dict(creds_dict)
+    sh = gc.open_by_url(st.secrets["connections"]["gsheets"]["spreadsheet"]).sheet1
+    return sh
+
+# 데이터 초기 로드
 RSPAN_RAW_SENTENCES, MASTER_DF = load_all_data()
 
-# 페이지 기본 설정
-st.set_page_config(page_title="RSPAN 작업기억 테스트", layout="centered")
-
 # 전역 알파벳 자음 풀
-LETTERS_POOL = ["F", "H", "J", "K", "L", "N", "P", "Q", "R", "S", "T", "Y"]
-
-import streamlit as st
-import time
-import random
-import math
-import base64
-import os
-import gspread
-import hashlib
-import pandas as pd
-from datetime import datetime
+LETTERS_POOL = ["F", "H", "J", "K", "L", "N", "P", "Q", "R", "S", "T", "Y"]e
 
 # 페이지 설정
-st.set_page_config(page_title="RSPAN 작업기억 테스트", layout="centered")
-
-
 # 세션 상태(State) 초기화
 if "page" not in st.session_state:
     st.session_state.page = "instruction"
@@ -71,9 +55,12 @@ if "current_block" not in st.session_state:
     st.session_state.current_block = 1
 if "block_results" not in st.session_state:
     st.session_state.block_results = {}
-
 if "user_info" not in st.session_state:
     st.session_state.user_info = None
+    
+# 코드 상단 세션 상태 초기화 부분 바로 아래에 추가
+if st.session_state.page != "instruction":
+    st.sidebar.warning("⚠️ 주의: 새로고침을 하면 실험 데이터가 초기화됩니다.")
 
 # 순수 메트로놈 오디오 생성 함수 (WAV 바이너리)
 def generate_pure_metronome(bpm, duration_seconds=30):
@@ -476,9 +463,7 @@ elif st.session_state.page == "survey_post":
         
         # 데이터 전송 시도
         try:
-            creds = st.secrets["gspread_credentials"]
-            client = gspread.service_account_from_dict(creds)
-            sheet = client.open_by_url(st.secrets["connections"]["gsheets"]["spreadsheet"]).get_worksheet(0)
+            sheet = get_google_sheet()
             
             # 시트에 기록할 행 데이터 구성
             row = [
@@ -503,3 +488,8 @@ elif st.session_state.page == "survey_post":
             st.rerun()
         except Exception as e:
             st.error(f"전송 실패: {e}")
+            
+elif st.session_state.page == "complete":
+    st.balloons()
+    st.title("🎉 실험이 완료되었습니다!")
+    st.success("소중한 참여 감사합니다. 창을 닫아주셔도 좋습니다.")
