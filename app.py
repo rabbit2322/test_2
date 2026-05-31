@@ -39,16 +39,13 @@ def load_all_data():
 # --- [구글 시트 연결 함수] ---
 @st.cache_resource 
 def get_google_sheet():
-    # 1. secrets에서 json 문자열을 가져옵니다.
-    creds_json = st.secrets["gspread_credentials"]["json"]
+    # secrets의 섹션을 그대로 딕셔너리로 변환하여 사용
+    creds_dict = dict(st.secrets["gspread_credentials"])
     
-    # 2. json 문자열을 딕셔너리로 변환합니다.
-    creds_dict = json.loads(creds_json)
-    
-    # 3. 변환된 딕셔너리를 사용하여 인증합니다.
+    # 딕셔너리를 바로 전달
     gc = gspread.service_account_from_dict(creds_dict)
     
-    # 4. 시트 오픈
+    # 시트 오픈
     sh = gc.open_by_url(st.secrets["connections"]["gsheets"]["spreadsheet"]).sheet1
     return sh
 
