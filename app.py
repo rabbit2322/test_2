@@ -7,6 +7,7 @@ import os
 import gspread
 import hashlib
 import pandas as pd
+import numpy as np
 
 # 페이지 기본 설정
 st.set_page_config(page_title="RSPAN 작업기억 테스트", layout="centered")
@@ -167,7 +168,7 @@ def init_block_task():
 # -------------------------------------------------------------------------
 
 if st.session_state.page == "instruction":
-    st.title("🔬 Reading Span Task (RSPAN) 실험 안내")
+    st.title("🔬 Reading Span Task (RST) 실험 안내")
     st.write("본 실험은 언어 처리 능력과 작업 기억 용량(Working Memory Capacity)을 측정하기 위한 검사입니다.")
     
     st.markdown("""
