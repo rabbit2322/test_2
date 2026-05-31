@@ -432,9 +432,11 @@ elif st.session_state.page == "rspan_recall":
                 accuracy = round((sum(st.session_state.user_sentence_answers) / set_size) * 100, 1)
                 mean_rt = round(st.session_state.total_sentence_rt / set_size, 3)
                 
-                st.session_state.block_results[f"b{block}_score"] = f"{score}/{set_size}"
-                st.session_state.block_results[f"b{block}_accuracy"] = f"{accuracy}%"
-                st.session_state.block_results[f"b{block}_rt"] = mean_rt
+            #[수정] 데이터 기록 키값 통일
+                st.session_state.block_results[f"b{block}_word_score"] = f"{score}/{set_size}"
+                st.session_state.block_results[f"b{block}_sentence_score"] = f"{accuracy}%"
+                st.session_state.block_results[f"b{block}_sentence_rt"] = mean_rt
+                st.session_state.block_results[f"b{block}_word_rt"] = 0 # (단어 회상 시간 측정 로직이 있다면 추가)
                 
                 if st.session_state.current_block < 3:
                     st.session_state.current_block += 1
@@ -482,6 +484,8 @@ elif st.session_state.page == "survey_post":
                 st.error("🚨 이미 해당 코드로 제출된 데이터가 있습니다. 중복 제출은 불가능합니다.")
                 st.stop()
         # 시트에 기록할 행 데이터 구성
+        # [요청하신 영문 컬럼명으로 코드 수정]
+        # [영문 컬럼명으로 수정된 행 데이터 구성]
             row = [
                 st.session_state.survey_data.get("code", ""),
                 st.session_state.survey_data.get("treatment", ""),
@@ -490,15 +494,25 @@ elif st.session_state.page == "survey_post":
                 st.session_state.survey_data.get("fatigue", ""),
                 st.session_state.survey_data.get("noise_sensitivity", ""),
                 st.session_state.survey_data.get("sound_preference", ""),
-                st.session_state.block_results.get("b1_score", ""),
-                st.session_state.block_results.get("b1_accuracy", ""),
-                st.session_state.block_results.get("b1_rt", ""),
-                st.session_state.block_results.get("b2_score", ""),
-                st.session_state.block_results.get("b2_accuracy", ""),
-                st.session_state.block_results.get("b2_rt", ""),
-                st.session_state.block_results.get("b3_score", ""),
-                st.session_state.block_results.get("b3_accuracy", ""),
-                st.session_state.block_results.get("b3_rt", ""),
+                
+                # Block 1
+                st.session_state.block_results.get("b1_word_score", ""),
+                st.session_state.block_results.get("b1_sentence_score", ""),
+                st.session_state.block_results.get("b1_word_rt", ""),
+                st.session_state.block_results.get("b1_sentence_rt", ""),
+                
+                # Block 2 (요청에 맞춰 동일 패턴 적용)
+                st.session_state.block_results.get("b2_word_score", ""),
+                st.session_state.block_results.get("b2_sentence_score", ""),
+                st.session_state.block_results.get("b2_word_rt", ""),
+                st.session_state.block_results.get("b2_sentence_rt", ""),
+                
+                # Block 3
+                st.session_state.block_results.get("b3_word_score", ""),
+                st.session_state.block_results.get("b3_sentence_score", ""),
+                st.session_state.block_results.get("b3_word_rt", ""),
+                st.session_state.block_results.get("b3_sentence_rt", ""),
+                
                 st.session_state.survey_data.get("satisfaction", ""),
                 st.session_state.survey_data.get("feedback", ""),
                 st.session_state.survey_data.get("phone_number", "")
