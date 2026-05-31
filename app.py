@@ -43,7 +43,7 @@ def get_google_sheet():
 RSPAN_RAW_SENTENCES, MASTER_DF = load_all_data()
 
 # 전역 알파벳 자음 풀
-LETTERS_POOL = ["F", "H", "J", "K", "L", "N", "P", "Q", "R", "S", "T", "Y"]e
+LETTERS_POOL = ["F", "H", "J", "K", "L", "N", "P", "Q", "R", "S", "T", "Y"]
 
 # 페이지 설정
 # 세션 상태(State) 초기화
