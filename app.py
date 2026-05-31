@@ -22,6 +22,7 @@ def load_all_data():
     if os.path.exists("span.txt"):
         with open("span.txt", "r", encoding="utf-8") as f:
             sentences = [{"template": line.strip()} for line in f if line.strip()]
+
     df = pd.DataFrame(columns=['code', 'treatment', 'time_slot'])
     if os.path.exists("participant_list.csv"):
         df = pd.read_csv("participant_list.csv")
@@ -449,8 +450,7 @@ elif st.session_state.page == "survey_post":
     # 소음조건 영향 및 상세 안내 가이드라인
     st.caption("💡 예시 안내: 음향이 집중, 기억 회상, 심리적 부담 등에 어떤 영향을 주었는지 간략히 기술해 주십시오.")
     feedback = st.text_area(
-        placeholder="배정된 소음 조건이 테스트 과정 중 본인의 기억력이나 집중력에 어떤 영향을 줬는지 1~2줄 내외로 작성해 주세요."
-    )
+        "배정된 소음 조건이 테스트 과정 중 본인의 기억력이나 집중력에 어떤 영향을 줬는지 1~2줄 내외로 작성해 주세요.")
     
     st.markdown("---")
     st.subheader("📞 연락처 수집 (선택 사항)")
