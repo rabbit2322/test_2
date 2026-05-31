@@ -46,7 +46,7 @@ def get_google_sheet():
     gc = gspread.service_account_from_dict(creds_dict)
     
     # 시트 오픈
-    sh = gc.open_by_url(st.secrets["connections"]["gsheets"]["spreadsheet"]).sheet1
+    sh = gc.open_by_url(st.secrets["connections"]["gsheets"]["spreadsheet"]).worksheet("시트1")
     return sh
 
 # 데이터 초기 로드
