@@ -388,6 +388,8 @@ elif st.session_state.page == "rspan_test":
 # [3] 알파벳 자음 순서 회상 키패드 페이지
 # -------------------------------------------------------------------------
 elif st.session_state.page == "rspan_recall":
+    if "recall_start_time" not in st.session_state:
+        st.session_state.recall_start_time = time.time()
     block = st.session_state.current_block
     set_size = st.session_state.set_size
     
@@ -428,15 +430,21 @@ elif st.session_state.page == "rspan_recall":
                 correct = st.session_state.selected_letters
                 user = st.session_state.user_recalled_letters
                 
+                # [수정] 단어 회상 시간 계산
+                recall_end_time = time.time()
+                word_rt = round(recall_end_time - st.session_state.recall_start_time, 3)
                 score = sum(1 for u, c in zip(user, correct) if u == c)
                 accuracy = round((sum(st.session_state.user_sentence_answers) / set_size) * 100, 1)
                 mean_rt = round(st.session_state.total_sentence_rt / set_size, 3)
                 
-            #[수정] 데이터 기록 키값 통일
+                #[수정] 데이터 기록 키값 통일
                 st.session_state.block_results[f"b{block}_word_score"] = f"{score}/{set_size}"
                 st.session_state.block_results[f"b{block}_sentence_score"] = f"{accuracy}%"
                 st.session_state.block_results[f"b{block}_sentence_rt"] = mean_rt
-                st.session_state.block_results[f"b{block}_word_rt"] = 0 # (단어 회상 시간 측정 로직이 있다면 추가)
+                st.session_state.block_results[f"b{block}_word_rt"] = word_rt
+                
+                #[추가] 다음 블록을 위해 시간 기록 초기화
+                del st.session_state.recall_start_time
                 
                 if st.session_state.current_block < 3:
                     st.session_state.current_block += 1
