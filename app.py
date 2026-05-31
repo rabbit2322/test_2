@@ -13,20 +13,19 @@ st.set_page_config(page_title="RSPAN 작업기억 테스트", layout="centered")
 # 전역 알파벳 자음 풀
 LETTERS_POOL = ["F", "H", "J", "K", "L", "N", "P", "Q", "R", "S", "T", "Y"]
 
-# 외부 텍스트 파일(span.txt)에서 문장 로드하는 함수
 @st.cache_data
-def load_sentences(file_path="span.txt"):
+def load_all_data():
+    # 1. 문장 로드
     sentences = []
-    if os.path.exists(file_path):
-        with open(file_path, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if line:  # 빈 줄이 아니면 리스트에 추가
-                    sentences.append({"template": line})
-    return sentences
+    if os.path.exists("span.txt"):
+        with open("span.txt", "r", encoding="utf-8") as f:
+            sentences = [{"template": line.strip()} for line in f if line.strip()]
+    
+    # 2. 참여자 리스트 로드 (code, treatment, time_slot 컬럼 필수)
+    master_df = pd.read_csv("participant_list.csv") if os.path.exists("participant_list.csv") else pd.DataFrame()
+    return sentences, master_df
 
-# 문장 데이터셋 불러오기
-RSPAN_RAW_SENTENCES = load_sentences("span.txt")
+RSPAN_RAW_SENTENCES, MASTER_DF = load_all_data()
 
 # 세션 상태(State) 초기화
 if "page" not in st.session_state:
@@ -37,6 +36,9 @@ if "current_block" not in st.session_state:
     st.session_state.current_block = 1
 if "block_results" not in st.session_state:
     st.session_state.block_results = {}
+
+if "user_info" not in st.session_state:
+    st.session_state.user_info = None
 
 # 순수 메트로놈 오디오 생성 함수 (WAV 바이너리)
 def generate_pure_metronome(bpm, duration_seconds=30):
@@ -131,21 +133,45 @@ if st.session_state.page == "instruction":
     
     st.markdown("""
     ### 💡 실험 진행 방식
-    본 실험은 총 **3개의 단계**로 구성되어 있으며, 갈수록 기억해야 하는 항목이 많아집니다.
-    * **1단계 :** 총 3개의 문장 판단 + 3개의 글자 기억
-    * **2단계 :** 총 5개의 문장 판단 + 5개의 글자 기억
-    * **3단계 :** 총 7개의 문장 판단 + 7개의 글자 기억
+    본 실험은 총 **3개의 단계(Block)**로 구성되어 있으며, 갈수록 기억해야 하는 항목이 많아집니다.
+    * **1단계 (Block 1):** 총 3개의 문장 판단 + 3개의 글자 기억
+    * **2단계 (Block 2):** 총 5개의 문장 판단 + 5개의 글자 기억
+    * **3단계 (Block 3):** 총 7개의 문장 판단 + 7개의 글자 기억
     
     ### 🕹️ 세부 수행 흐름
     1. 화면에 문장이 제시되면 문맥이 올바른지 **⭕(TRUE)** 또는 **❌(FALSE)** 버튼을 눌러 빠르게 판단합니다.
     2. 문장 판단 직후 화면에 **알파벳 자음 한 글자**가 0.5초 동안 나타났다 사라집니다. 이 글자를 순서대로 머릿속에 기억하셔야 합니다.
-    3. 지정된 세트가 끝나면 키패드가 나타납니다. 방금 보았던 알파벳들을 **나타났던 순서 그대로** 클릭하여 입력해 주세요.
+    3. 지정된 세트가 끝나면 키패드가 나타납니다. 방금 보았던 알파벳들을 **나타났던 순서 그대로** 마우스로 클릭하여 입력해 주세요.
     """)
-    st.info("⚠️ 주의: 문장 판단을 너무 오래 지연할경우 정상적인 측정이 되지 않습니다.")
+    st.info("⚠️ 주의: 문장 판단을 너무 오래 지연하거나 알파벳을 임의로 적으면 정상적인 측정이 되지 않습니다.")
     
     if st.button("안내를 확인했으며, 사전 설문 시작하기", use_container_width=True, type="primary"):
         st.session_state.page = "survey_pre"
         st.rerun()
+    
+    
+    
+    # 1. 코드 입력 및 시간대/배정 확인
+    user_code = st.text_input("참여자 코드를 입력하세요")
+    
+    if st.button("안내 확인 및 시작", type="primary"):
+        user_row = MASTER_DF[MASTER_DF['code'] == user_code]
+        if not user_row.empty:
+            p_data = user_row.iloc[0]
+            # 3. 시간대 제한 체크
+            now_hour = datetime.now().hour
+            current_slot = "AM" if now_hour < 12 else "PM"
+            if p_data['time_slot'] != current_slot:
+                st.error(f"지금은 {current_slot}입니다. 배정된 시간대인 {p_data['time_slot']}에 접속하세요.")
+            else:
+                st.session_state.survey_data.update(p_data.to_dict())
+                st.session_state.page = "survey_pre"
+                st.rerun()
+        else:
+            st.error("등록되지 않은 참여자 코드입니다.")
+    
+    if st.button("🔊 소리 사전 테스트"):
+        st.audio(generate_pure_metronome(60, 3), format="audio/wav")
 
 # -------------------------------------------------------------------------
 # [1] 1. 사전 설문조사 (Pre-test Questionnaire)
@@ -179,15 +205,14 @@ elif st.session_state.page == "survey_pre":
     sound_pref_type = st.radio(
         "평소 선호하는 음향 학습 환경을 선택해주세요.",
         [
-            "① 완전한 정적 (예: 무음 환경)",
-            "② 지속적인 백색소음 (예: 팬 소리, 빗소리 등)",
-            "③ 적당한 생활 소음이 있는 환경 (예: 카페 등)",
-            "④ 기타 (자유 기술)"
+            "완전한 정적 (예: 무음 환경)",
+            "지속적인 백색소음 (예: 팬 소리, 빗소리 등)",
+            "적당한 생활 소음이 있는 환경 (예: 카페 등)",
+            "기타 (자유 기술)"
         ]
     )
     
-    # ④ 기타 (자유 기술) 처리
-    if sound_pref_type == "④ 기타 (자유 기술)":
+    if sound_pref_type == " 기타 (자유 기술)":
         sound_preference_detail = st.text_input("기타 (자유 기술) 내용을 적어주세요. (예: 잔잔한 클래식 음악 등)", placeholder="여기에 자유롭게 작성")
         final_sound_preference = f"기타: {sound_preference_detail}" if sound_preference_detail else "기타(내용 미입력)"
     else:
@@ -196,16 +221,13 @@ elif st.session_state.page == "survey_pre":
     if st.button("실험 환경 조건 무작위 배정 및 테스트 시작", use_container_width=True, type="primary"):
         anon_seed = str(time.time()) + str(age) + str(fatigue)
         hash_val = int(hashlib.md5(anon_seed.encode('utf-8')).hexdigest(), 16)
-        treatments = ["silent", "60bpm", "130bpm"]
-        assigned_treatment = treatments[hash_val % 3]
         
         st.session_state.survey_data.update({
             "age": age,
             "sleep_time": f"{sleep_hour}:{sleep_min}",
             "fatigue": fatigue,
             "noise_sensitivity": noise_sensitivity,
-            "sound_preference": final_sound_preference,
-            "treatment": assigned_treatment
+            "sound_preference": final_sound_preference
         })
         
         st.session_state.current_block = 1
@@ -380,48 +402,22 @@ elif st.session_state.page == "survey_post":
             "feedback": feedback if feedback else "내용 미입력",
             "phone_number": phone_number if phone_number else "미입력"
         })
-        st.session_state.survey_data.update(st.session_state.block_results)
-        
-        with st.spinner("클라우드 데이터베이스 전송 트래픽 처리 중..."):
-            try:
-                creds = st.secrets["gspread_credentials"]
-                sheet_url = st.secrets["connections"]["gsheets"]["spreadsheet"]
-                
-                client = gspread.service_account_from_dict(creds)
-                sheet = client.open_by_url(sheet_url).get_worksheet(0)
-                
-                sheet.append_row([
-                    st.session_state.survey_data.get("age", ""),
-                    st.session_state.survey_data.get("sleep_time", ""),
-                    st.session_state.survey_data.get("fatigue", ""),
-                    st.session_state.survey_data.get("noise_sensitivity", ""),
-                    st.session_state.survey_data.get("sound_preference", ""),
-                    st.session_state.survey_data.get("treatment", ""),
-                    st.session_state.survey_data.get("b1_score", ""),
-                    st.session_state.survey_data.get("b1_accuracy", ""),
-                    st.session_state.survey_data.get("b1_rt", ""),
-                    st.session_state.survey_data.get("b2_score", ""),
-                    st.session_state.survey_data.get("b2_accuracy", ""),
-                    st.session_state.survey_data.get("b2_rt", ""),
-                    st.session_state.survey_data.get("b3_score", ""),
-                    st.session_state.survey_data.get("b3_accuracy", ""),
-                    st.session_state.survey_data.get("b3_rt", ""),
-                    st.session_state.survey_data.get("satisfaction", ""),
-                    st.session_state.survey_data.get("feedback", ""),
-                    st.session_state.survey_data.get("phone_number", "")
-                ])
-                st.session_state.page = "complete"
-                st.rerun()
-            except Exception as e:
-                st.error(f"시트 전송 중 오류 발생: {e}")
-                st.info("임시 확인용 데이터 캐시 로그:")
-                st.code(str(st.session_state.survey_data))
-
-# -------------------------------------------------------------------------
-# [5] 최종 마감 완료 페이지
-# -------------------------------------------------------------------------
-elif st.session_state.page == "complete":
-    st.title("🎉 테스트 및 설문 제출 완료")
-    st.success("모든 실험 프로세스가 안전하게 종료되었습니다. 학술 연구에 참여해 주셔서 감사합니다.")
-    st.balloons()
-    st.json(st.session_state.survey_data)
+        if st.button("최종 전송"):
+        try:
+            # 4. 구글 시트 연동 (기존 로직 유지)
+            creds = st.secrets["gspread_credentials"]
+            client = gspread.service_account_from_dict(creds)
+            sheet = client.open_by_url(st.secrets["connections"]["gsheets"]["spreadsheet"]).get_worksheet(0)
+            
+            # survey_data에는 이미 코드, 처치, 설문 정보가 모두 담겨 있음
+            row = [
+                st.session_state.survey_data.get("code"),
+                st.session_state.survey_data.get("treatment"),
+                *st.session_state.block_results.values(),
+                # ... 나머지 항목 ...
+            ]
+            sheet.append_row(row)
+            st.session_state.page = "complete"
+            st.rerun()
+        except Exception as e:
+            st.error(f"전송 실패: {e}")
