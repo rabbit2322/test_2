@@ -397,24 +397,37 @@ elif st.session_state.page == "survey_post":
     phone_number = st.text_input("휴대폰 번호 입력 (예: 010-XXXX-XXXX)", placeholder="선택 사항이므로 기입하지 않으셔도 무방합니다.")
     
     if st.button("최종 실험 결과 데이터베이스 전송", use_container_width=True, type="primary"):
+        # 설문 데이터 업데이트
         st.session_state.survey_data.update({
             "satisfaction": satisfaction, 
             "feedback": feedback if feedback else "내용 미입력",
             "phone_number": phone_number if phone_number else "미입력"
         })
-        if st.button("최종 전송"):
+        st.session_state.survey_data.update(st.session_state.block_results)
+        
+        # 데이터 전송 시도
         try:
-            # 4. 구글 시트 연동 (기존 로직 유지)
             creds = st.secrets["gspread_credentials"]
             client = gspread.service_account_from_dict(creds)
             sheet = client.open_by_url(st.secrets["connections"]["gsheets"]["spreadsheet"]).get_worksheet(0)
             
-            # survey_data에는 이미 코드, 처치, 설문 정보가 모두 담겨 있음
+            # 시트에 기록할 행 데이터 구성
             row = [
-                st.session_state.survey_data.get("code"),
-                st.session_state.survey_data.get("treatment"),
-                *st.session_state.block_results.values(),
-                # ... 나머지 항목 ...
+                st.session_state.survey_data.get("code", ""),
+                st.session_state.survey_data.get("treatment", ""),
+                st.session_state.survey_data.get("age", ""),
+                st.session_state.survey_data.get("b1_score", ""),
+                st.session_state.survey_data.get("b1_accuracy", ""),
+                st.session_state.survey_data.get("b1_rt", ""),
+                st.session_state.survey_data.get("b2_score", ""),
+                st.session_state.survey_data.get("b2_accuracy", ""),
+                st.session_state.survey_data.get("b2_rt", ""),
+                st.session_state.survey_data.get("b3_score", ""),
+                st.session_state.survey_data.get("b3_accuracy", ""),
+                st.session_state.survey_data.get("b3_rt", ""),
+                st.session_state.survey_data.get("satisfaction", ""),
+                st.session_state.survey_data.get("feedback", ""),
+                st.session_state.survey_data.get("phone_number", "")
             ]
             sheet.append_row(row)
             st.session_state.page = "complete"
