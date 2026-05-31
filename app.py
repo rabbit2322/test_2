@@ -22,11 +22,17 @@ def load_all_data():
     if os.path.exists("span.txt"):
         with open("span.txt", "r", encoding="utf-8") as f:
             sentences = [{"template": line.strip()} for line in f if line.strip()]
-    
     df = pd.DataFrame(columns=['code', 'treatment', 'time_slot'])
     if os.path.exists("participant_list.csv"):
         df = pd.read_csv("participant_list.csv")
+        
+        # 1. 컬럼명 정리
         df.columns = df.columns.str.strip().str.lower()
+        
+        # 2. 'code' 컬럼을 문자열로 변환하고 앞뒤 공백 제거 (매우 중요)
+        if 'code' in df.columns:
+            df['code'] = df['code'].astype(str).str.strip()
+            
     return sentences, df
 
 # --- [구글 시트 연결 함수] ---
