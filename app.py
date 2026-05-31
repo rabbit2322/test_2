@@ -192,7 +192,7 @@ if st.session_state.page == "instruction":
     st.write("---")
     
     # [추가] 소리 테스트 섹션
-    st.sub header("🔊 음량 확인 및 테스트")
+    st.subheader("🔊 음량 확인 및 테스트")
     
     if st.button("소리 테스트 재생"):
         sound_data = get_metronome_sound()
