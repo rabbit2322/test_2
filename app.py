@@ -22,11 +22,17 @@ def load_all_data():
         with open("span.txt", "r", encoding="utf-8") as f:
             sentences = [{"template": line.strip()} for line in f if line.strip()]
     
-    # 2. 참여자 리스트 로드 (code, treatment, time_slot 컬럼 필수)
-    master_df = pd.read_csv("participant_list.csv") if os.path.exists("participant_list.csv") else pd.DataFrame()
+    # 2. 참여자 리스트 로드 및 컬럼명 정리
+    if os.path.exists("participant_list.csv"):
+        master_df = pd.read_csv("participant_list.csv")
+        # 컬럼명 앞뒤 공백 제거
+        master_df.columns = master_df.columns.str.strip()
+        # 소문자로 통일 (CSV에 Code라고 적혀 있어도 code로 접근 가능)
+        master_df.columns = master_df.columns.str.lower()
+    else:
+        master_df = pd.DataFrame()
+        
     return sentences, master_df
-
-RSPAN_RAW_SENTENCES, MASTER_DF = load_all_data()
 
 # 세션 상태(State) 초기화
 if "page" not in st.session_state:
